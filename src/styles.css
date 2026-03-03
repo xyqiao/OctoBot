@@ -61,12 +61,14 @@ body {
   background: #1875e7;
   color: #ffffff;
   padding: 10px 14px;
-  width: max-content;
-  max-width: 50%;
+  width: 100%;
+  max-width: none;
 }
 
 .nexus-chat-shell .nexus-user-message-root {
-  grid-template-columns: minmax(72px, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) fit-content(50%) auto;
+  column-gap: 6px;
+  align-items: start;
 }
 
 .nexus-chat-shell .nexus-user-avatar {
@@ -80,15 +82,15 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: 8px;
-  margin-left: 10px;
+  margin-top: 0;
+  margin-left: 0;
 }
 
 .nexus-chat-shell .aui-user-message-content .aui-text {
   display: inline;
   white-space: pre-wrap;
   word-break: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: normal;
 }
 
 .nexus-chat-shell .aui-assistant-message-content {

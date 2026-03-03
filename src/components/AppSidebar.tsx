@@ -1,12 +1,18 @@
 import {
   Avatar,
+  Box,
   Button,
+  ClickAwayListener,
   Divider,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuList,
+  MenuItem,
   Paper,
+  Popper,
   Stack,
   Typography,
 } from "@mui/material";
@@ -14,8 +20,10 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
 import ChecklistRoundedIcon from "@mui/icons-material/ChecklistRounded";
 import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
+import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatSession, NavView } from "../types";
 
 const sidebarStyle = {
@@ -35,6 +43,9 @@ type AppSidebarProps = {
   selectedChatId: string;
   onSelectChat: (chatId: string) => void;
   onSelectView: (view: NavView) => void;
+  onCreateChat: () => void;
+  onRenameChat: (chat: ChatSession) => void;
+  onDeleteChat: (chat: ChatSession) => void;
 };
 
 export default function AppSidebar({
@@ -43,7 +54,49 @@ export default function AppSidebar({
   selectedChatId,
   onSelectChat,
   onSelectView,
+  onCreateChat,
+  onRenameChat,
+  onDeleteChat,
 }: AppSidebarProps) {
+  const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
+  const [menuChatId, setMenuChatId] = useState<string>("");
+  const [hoveredChatId, setHoveredChatId] = useState<string>("");
+  const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverOnButtonRef = useRef(false);
+  const hoverOnMenuRef = useRef(false);
+  const menuOpen = Boolean(menuAnchorEl && menuChatId);
+  const menuChat = useMemo(() => chats.find((chat) => chat.id === menuChatId) ?? null, [chats, menuChatId]);
+
+  function clearMenuCloseTimer() {
+    if (menuCloseTimerRef.current) {
+      clearTimeout(menuCloseTimerRef.current);
+      menuCloseTimerRef.current = null;
+    }
+  }
+
+  function scheduleMenuClose() {
+    clearMenuCloseTimer();
+    menuCloseTimerRef.current = setTimeout(() => {
+      if (!hoverOnButtonRef.current && !hoverOnMenuRef.current) {
+        closeMenu();
+      }
+    }, 120);
+  }
+
+  function closeMenu() {
+    clearMenuCloseTimer();
+    hoverOnButtonRef.current = false;
+    hoverOnMenuRef.current = false;
+    setMenuAnchorEl(null);
+    setMenuChatId("");
+  }
+
+  useEffect(() => {
+    return () => {
+      clearMenuCloseTimer();
+    };
+  }, []);
+
   return (
     <Paper elevation={0} sx={sidebarStyle}>
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3.2, px: 0.6 }}>
@@ -58,6 +111,10 @@ export default function AppSidebar({
       <Button
         variant="contained"
         startIcon={<AddRoundedIcon />}
+        onClick={() => {
+          onSelectView("chat");
+          onCreateChat();
+        }}
         sx={{ py: 1.4, borderRadius: 1.6, textTransform: "none", fontSize: 29 / 2.2, mb: 3, fontWeight: 700 }}
       >
         新建对话
@@ -66,35 +123,130 @@ export default function AppSidebar({
       <Typography sx={{ fontWeight: 700, color: "#6b7b97", fontSize: 15, mb: 1.1 }}>对话记录</Typography>
       <List sx={{ py: 0 }}>
         {chats.map((chat) => (
-          <ListItemButton
+          <Box
             key={chat.id}
-            selected={view === "chat" && selectedChatId === chat.id}
-            onClick={() => {
-              onSelectView("chat");
-              onSelectChat(chat.id);
+            className="nexus-chat-list-item"
+            onMouseEnter={() => {
+              setHoveredChatId(chat.id);
+            }}
+            onMouseLeave={() => {
+              setHoveredChatId((current) => (current === chat.id ? "" : current));
             }}
             sx={{
-              borderRadius: 1.6,
+              position: "relative",
               mb: 0.5,
-              py: 1.05,
-              borderRight: view === "chat" && selectedChatId === chat.id ? "4px solid #1674e6" : "4px solid transparent",
-              backgroundColor: view === "chat" && selectedChatId === chat.id ? "#edf2fb" : "transparent",
             }}
           >
-            <ListItemIcon sx={{ minWidth: 38 }}>
-              <ChatBubbleOutlineRoundedIcon color={view === "chat" && selectedChatId === chat.id ? "primary" : "action"} />
-            </ListItemIcon>
-            <ListItemText
-              primary={chat.title}
-              primaryTypographyProps={{
-                fontSize: 30 / 2.3,
-                fontWeight: view === "chat" && selectedChatId === chat.id ? 700 : 500,
-                color: view === "chat" && selectedChatId === chat.id ? "#1573e6" : "inherit",
+            <ListItemButton
+              selected={view === "chat" && selectedChatId === chat.id}
+              onClick={() => {
+                onSelectView("chat");
+                onSelectChat(chat.id);
               }}
-            />
-          </ListItemButton>
+              sx={{
+                borderRadius: 1.6,
+                py: 1.05,
+                pr: 5.5,
+                backgroundColor: view === "chat" && selectedChatId === chat.id ? "#edf2fb" : "transparent",
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 38 }}>
+                <ChatBubbleOutlineRoundedIcon color={view === "chat" && selectedChatId === chat.id ? "primary" : "action"} />
+              </ListItemIcon>
+              <ListItemText
+                sx={{ minWidth: 0, overflow: "hidden" }}
+                primary={chat.title}
+                primaryTypographyProps={{
+                  noWrap: true,
+                  title: chat.title,
+                  fontSize: 30 / 2.3,
+                  fontWeight: view === "chat" && selectedChatId === chat.id ? 700 : 500,
+                  color: view === "chat" && selectedChatId === chat.id ? "#1573e6" : "inherit",
+                }}
+              />
+            </ListItemButton>
+
+            <IconButton
+              className="nexus-chat-item-menu-btn"
+              size="small"
+              onMouseEnter={(event) => {
+                hoverOnButtonRef.current = true;
+                clearMenuCloseTimer();
+                setMenuAnchorEl(event.currentTarget);
+                setMenuChatId(chat.id);
+              }}
+              onMouseLeave={() => {
+                hoverOnButtonRef.current = false;
+                scheduleMenuClose();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                clearMenuCloseTimer();
+                setMenuAnchorEl(event.currentTarget);
+                setMenuChatId(chat.id);
+              }}
+              sx={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                transition: "opacity 120ms ease",
+                opacity: hoveredChatId === chat.id || menuChatId === chat.id ? 1 : 0,
+              }}
+            >
+              <MoreHorizRoundedIcon fontSize="small" />
+            </IconButton>
+          </Box>
         ))}
       </List>
+
+      <Popper
+        anchorEl={menuAnchorEl}
+        open={menuOpen}
+        placement="bottom-end"
+        sx={{
+          zIndex: 1400,
+        }}
+      >
+        <ClickAwayListener onClickAway={closeMenu}>
+          <Paper
+            elevation={4}
+            onMouseEnter={() => {
+              hoverOnMenuRef.current = true;
+              clearMenuCloseTimer();
+            }}
+            onMouseLeave={() => {
+              hoverOnMenuRef.current = false;
+              scheduleMenuClose();
+            }}
+            sx={{ mt: 0.4, borderRadius: 1.8, overflow: "hidden", border: "1px solid #d7e1f1" }}
+          >
+            <MenuList dense onClick={(event) => event.stopPropagation()}>
+              <MenuItem
+                onClick={() => {
+                  if (menuChat) {
+                    onRenameChat(menuChat);
+                  }
+                  closeMenu();
+                }}
+              >
+                重命名
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  if (menuChat) {
+                    onDeleteChat(menuChat);
+                  }
+                  closeMenu();
+                }}
+              >
+                删除
+              </MenuItem>
+            </MenuList>
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
 
       <Divider sx={{ my: 2 }} />
 

@@ -19,6 +19,18 @@ export async function listChats() {
   return ensureDesktopApi().listChats() as Promise<ChatSession[]>;
 }
 
+export async function createChat() {
+  return ensureDesktopApi().createChat() as Promise<ChatSession>;
+}
+
+export async function renameChat(chatId: string, title: string) {
+  return ensureDesktopApi().renameChat(chatId, title);
+}
+
+export async function deleteChat(chatId: string) {
+  return ensureDesktopApi().deleteChat(chatId);
+}
+
 export async function getChatMessages(chatId: string) {
   return ensureDesktopApi().getChatMessages(chatId) as Promise<ChatMessage[]>;
 }

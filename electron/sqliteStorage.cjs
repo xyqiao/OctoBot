@@ -79,6 +79,26 @@ function toSettings(row) {
   };
 }
 
+function summarizeChatTitle(content) {
+  const raw = String(content ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!raw) {
+    return "新对话";
+  }
+
+  const cleaned = raw.replace(/^[#>*`\-+\d.)\s]+/, "").trim();
+  const firstSentence = cleaned.split(/[\n。！？!?；;]+/)[0]?.trim() || cleaned;
+  const maxLen = /[^\x00-\x7f]/.test(firstSentence) ? 16 : 36;
+
+  if (firstSentence.length <= maxLen) {
+    return firstSentence;
+  }
+
+  return `${firstSentence.slice(0, maxLen).trim()}...`;
+}
+
 function ensureSchema(db) {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
@@ -177,11 +197,15 @@ function createStorage(userDataDir) {
     countChats: db.prepare("SELECT COUNT(1) AS count FROM chats"),
     countTasks: db.prepare("SELECT COUNT(1) AS count FROM tasks"),
     getSettings: db.prepare("SELECT * FROM settings WHERE id = ?"),
+    getChatById: db.prepare("SELECT * FROM chats WHERE id = ?"),
     insertChat: db.prepare("INSERT INTO chats (id, title, updated_at) VALUES (@id, @title, @updatedAt)"),
     insertMessage: db.prepare("INSERT INTO messages (id, chat_id, role, content, timestamp) VALUES (@id, @chatId, @role, @content, @timestamp)"),
+    countUserMessagesByChat: db.prepare("SELECT COUNT(1) AS count FROM messages WHERE chat_id = ? AND role = 'user'"),
     listChats: db.prepare("SELECT * FROM chats ORDER BY updated_at DESC"),
     listMessagesByChat: db.prepare("SELECT * FROM messages WHERE chat_id = ? ORDER BY timestamp ASC"),
     updateChatTime: db.prepare("UPDATE chats SET updated_at = ? WHERE id = ?"),
+    updateChatTitle: db.prepare("UPDATE chats SET title = ?, updated_at = ? WHERE id = ?"),
+    deleteChat: db.prepare("DELETE FROM chats WHERE id = ?"),
     listTasks: db.prepare("SELECT * FROM tasks ORDER BY updated_at DESC"),
     upsertTask: db.prepare(
       `INSERT INTO tasks (id, title, subtitle, status, progress, logs, updated_at)
@@ -331,14 +355,54 @@ function createStorage(userDataDir) {
     return queries.listChats.all().map(toChat);
   }
 
+  function createChat() {
+    const chat = {
+      id: makeId("chat"),
+      title: "新对话",
+      updatedAt: now(),
+    };
+
+    queries.insertChat.run(chat);
+    return chat;
+  }
+
+  function renameChat(chatId, title) {
+    const normalizedTitle = String(title ?? "").trim();
+    if (!normalizedTitle) {
+      return false;
+    }
+
+    const updatedAt = now();
+    const result = queries.updateChatTitle.run(normalizedTitle, updatedAt, chatId);
+    return result.changes > 0;
+  }
+
+  function deleteChat(chatId) {
+    const result = queries.deleteChat.run(chatId);
+    return result.changes > 0;
+  }
+
   function getChatMessages(chatId) {
     return queries.listMessagesByChat.all(chatId).map(toMessage);
   }
 
   function appendMessage(message) {
     const txn = db.transaction(() => {
+      const chatRow = message.role === "user" ? queries.getChatById.get(message.chatId) : null;
+      const shouldRetitle =
+        message.role === "user" &&
+        chatRow?.title === "新对话" &&
+        queries.countUserMessagesByChat.get(message.chatId).count === 0;
+
       queries.insertMessage.run(message);
-      queries.updateChatTime.run(Date.now(), message.chatId);
+
+      const updatedAt = Date.now();
+      queries.updateChatTime.run(updatedAt, message.chatId);
+
+      if (shouldRetitle) {
+        const generatedTitle = summarizeChatTitle(message.content);
+        queries.updateChatTitle.run(generatedTitle, updatedAt, message.chatId);
+      }
     });
     txn();
     return true;
@@ -383,6 +447,9 @@ function createStorage(userDataDir) {
   return {
     bootstrapData,
     listChats,
+    createChat,
+    renameChat,
+    deleteChat,
     getChatMessages,
     appendMessage,
     listTasks,

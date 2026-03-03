@@ -89,6 +89,9 @@ declare global {
       runTaskWorkflow: (payload: AgentRuntimePayload) => Promise<AgentRuntimeResult>;
       bootstrapData: () => Promise<boolean>;
       listChats: () => Promise<DesktopChatSession[]>;
+      createChat: () => Promise<DesktopChatSession>;
+      renameChat: (chatId: string, title: string) => Promise<boolean>;
+      deleteChat: (chatId: string) => Promise<boolean>;
       getChatMessages: (chatId: string) => Promise<DesktopChatMessage[]>;
       appendMessage: (message: DesktopChatMessage) => Promise<boolean>;
       listTasks: () => Promise<DesktopAgentTask[]>;

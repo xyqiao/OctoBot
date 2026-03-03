@@ -147,6 +147,9 @@ app
 
   ipcMain.handle("db:bootstrap", () => storage.bootstrapData());
   ipcMain.handle("db:listChats", () => storage.listChats());
+  ipcMain.handle("db:createChat", () => storage.createChat());
+  ipcMain.handle("db:renameChat", (_event, chatId, title) => storage.renameChat(chatId, title));
+  ipcMain.handle("db:deleteChat", (_event, chatId) => storage.deleteChat(chatId));
   ipcMain.handle("db:getChatMessages", (_event, chatId) => storage.getChatMessages(chatId));
   ipcMain.handle("db:appendMessage", (_event, message) => storage.appendMessage(message));
   ipcMain.handle("db:listTasks", () => storage.listTasks());
