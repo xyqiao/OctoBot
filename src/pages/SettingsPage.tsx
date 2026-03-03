@@ -119,7 +119,7 @@ export default function SettingsPage() {
 
           <Stack spacing={1.8}>
             <TextField
-              label="Model Name"
+              label="模型名称"
               value={settings.modelName}
               onChange={(event) => update("modelName", event.target.value)}
               helperText="例如：gpt-4o-mini / gpt-4.1-mini"
@@ -127,7 +127,7 @@ export default function SettingsPage() {
             />
 
             <TextField
-              label="Base URL"
+              label="网关地址"
               value={settings.baseUrl}
               onChange={(event) => update("baseUrl", event.target.value)}
               placeholder="https://api.openai.com/v1"
@@ -157,15 +157,15 @@ export default function SettingsPage() {
           <Stack>
             <FormControlLabel
               control={<Switch checked={settings.desktopNotifications} onChange={(_event, checked) => update("desktopNotifications", checked)} />}
-              label="Enable Desktop Notifications"
+              label="允许桌面通知"
             />
             <FormControlLabel
               control={<Switch checked={settings.developerLogging} onChange={(_event, checked) => update("developerLogging", checked)} />}
-              label="Developer Logging Mode"
+              label="开发者日志模式"
             />
             <FormControlLabel
               control={<Switch checked={settings.dataTelemetry} onChange={(_event, checked) => update("dataTelemetry", checked)} />}
-              label="Data Telemetry (Help improve model accuracy)"
+              label="数据遥测 (帮助提高模型准确性)"
             />
           </Stack>
         </Paper>

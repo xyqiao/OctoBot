@@ -65,13 +65,11 @@ export default function ChatPage({ activeChat, selectedChatId, onChatsChanged }:
 
   return (
     <Stack sx={{ height: "100%" }}>
-      <Box sx={{ px: 3.2, py: 2.6, borderBottom: "1px solid #d8e1ef", backgroundColor: "#f8fbff" }}>
-        <Typography variant="h4" sx={{ fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
-          {activeChat?.title ?? "Data Analysis Model"}
+      <Box sx={{ backgroundColor: "#f8fbff", textAlign: "center", py: 1, borderBottom: "1px solid #d8e1ef" }}>
+        <Typography variant="h4" sx={{ fontSize: 16, fontWeight: 600, lineHeight: 1.2 }}>
+          {activeChat?.title}
         </Typography>
-        <Typography sx={{ mt: 0.5, color: "#667a99", fontSize: 28 / 2.3 }}>
-          Running model: {settings?.modelName || "gpt-4o-mini"} {settings?.baseUrl ? `(${settings.baseUrl})` : ""}
-        </Typography>
+        <Typography sx={{ fontSize: 12, color: "#667a99", mt: 0.5 }}>内容由AI生成</Typography>
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, backgroundColor: "#eef2f8" }}>

@@ -23,7 +23,7 @@ import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
 import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ChatSession, NavView } from "../types";
 
 const sidebarStyle = {
@@ -61,41 +61,13 @@ export default function AppSidebar({
   const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [menuChatId, setMenuChatId] = useState<string>("");
   const [hoveredChatId, setHoveredChatId] = useState<string>("");
-  const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hoverOnButtonRef = useRef(false);
-  const hoverOnMenuRef = useRef(false);
   const menuOpen = Boolean(menuAnchorEl && menuChatId);
   const menuChat = useMemo(() => chats.find((chat) => chat.id === menuChatId) ?? null, [chats, menuChatId]);
 
-  function clearMenuCloseTimer() {
-    if (menuCloseTimerRef.current) {
-      clearTimeout(menuCloseTimerRef.current);
-      menuCloseTimerRef.current = null;
-    }
-  }
-
-  function scheduleMenuClose() {
-    clearMenuCloseTimer();
-    menuCloseTimerRef.current = setTimeout(() => {
-      if (!hoverOnButtonRef.current && !hoverOnMenuRef.current) {
-        closeMenu();
-      }
-    }, 120);
-  }
-
   function closeMenu() {
-    clearMenuCloseTimer();
-    hoverOnButtonRef.current = false;
-    hoverOnMenuRef.current = false;
     setMenuAnchorEl(null);
     setMenuChatId("");
   }
-
-  useEffect(() => {
-    return () => {
-      clearMenuCloseTimer();
-    };
-  }, []);
 
   return (
     <Paper elevation={0} sx={sidebarStyle}>
@@ -109,13 +81,26 @@ export default function AppSidebar({
       </Stack>
 
       <Button
-        variant="contained"
+        variant="text"
         startIcon={<AddRoundedIcon />}
         onClick={() => {
           onSelectView("chat");
           onCreateChat();
         }}
-        sx={{ py: 1.4, borderRadius: 1.6, textTransform: "none", fontSize: 29 / 2.2, mb: 3, fontWeight: 700 }}
+        sx={{
+          py: 1.2,
+          px: 1.2,
+          borderRadius: 1.6,
+          textTransform: "none",
+          fontSize: 29 / 2.2,
+          mb: 3,
+          fontWeight: 600,
+          justifyContent: "flex-start",
+          color: "primary.main",
+          "&:hover": {
+            backgroundColor: "#eaf1fb",
+          },
+        }}
       >
         新建对话
       </Button>
@@ -169,20 +154,13 @@ export default function AppSidebar({
             <IconButton
               className="nexus-chat-item-menu-btn"
               size="small"
-              onMouseEnter={(event) => {
-                hoverOnButtonRef.current = true;
-                clearMenuCloseTimer();
-                setMenuAnchorEl(event.currentTarget);
-                setMenuChatId(chat.id);
-              }}
-              onMouseLeave={() => {
-                hoverOnButtonRef.current = false;
-                scheduleMenuClose();
-              }}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                clearMenuCloseTimer();
+                if (menuOpen && menuChatId === chat.id) {
+                  closeMenu();
+                  return;
+                }
                 setMenuAnchorEl(event.currentTarget);
                 setMenuChatId(chat.id);
               }}
@@ -212,15 +190,7 @@ export default function AppSidebar({
         <ClickAwayListener onClickAway={closeMenu}>
           <Paper
             elevation={4}
-            onMouseEnter={() => {
-              hoverOnMenuRef.current = true;
-              clearMenuCloseTimer();
-            }}
-            onMouseLeave={() => {
-              hoverOnMenuRef.current = false;
-              scheduleMenuClose();
-            }}
-            sx={{ mt: 0.4, borderRadius: 1.8, overflow: "hidden", border: "1px solid #d7e1f1" }}
+            sx={{ mt: 0.4, borderRadius: 0.8, overflow: "hidden", border: "1px solid #d7e1f1" }}
           >
             <MenuList dense onClick={(event) => event.stopPropagation()}>
               <MenuItem
