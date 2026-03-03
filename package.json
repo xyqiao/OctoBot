@@ -1,0 +1,55 @@
+{
+  "name": "nexus-ai-electron",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.6.3",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k \"pnpm dev:renderer:watch\" \"pnpm dev:electron:local\"",
+    "dev:renderer": "vite",
+    "dev:renderer:watch": "vite build --watch --mode development",
+    "dev:electron": "wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "dev:electron:local": "wait-on dist/index.html && cross-env ELECTRON_WATCH=1 electron .",
+    "dev:hmr": "concurrently -k \"pnpm dev:renderer\" \"pnpm dev:electron\"",
+    "start": "electron .",
+    "build": "pnpm build:renderer",
+    "build:renderer": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "rebuild:native": "cross-env npm_config_devdir=.electron-gyp npm_config_disturl=https://npmmirror.com/mirrors/electron/ electron-rebuild -f -w better-sqlite3"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@langchain/langgraph": "^0.2.68",
+    "@langchain/openai": "^0.4.5",
+    "@mui/icons-material": "^6.4.7",
+    "@mui/material": "^6.4.7",
+    "better-sqlite3": "^12.6.2",
+    "langchain": "^0.3.31",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.10",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.6",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^40.6.1",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.3",
+    "wait-on": "^8.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "electron",
+      "esbuild"
+    ]
+  }
+}
