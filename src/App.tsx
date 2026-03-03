@@ -10,7 +10,6 @@ import {
   Divider,
   FormControlLabel,
   IconButton,
-  InputAdornment,
   LinearProgress,
   List,
   ListItemButton,
@@ -198,7 +197,9 @@ export default function App() {
     try {
       const runtime = await runMultiAgentChat({
         prompt: userMessage.content,
-        apiKey: settings.openaiApiKey,
+        apiKey: settings.apiKey,
+        modelName: settings.modelName.trim() || "gpt-4o-mini",
+        baseUrl: settings.baseUrl,
       });
 
       const runtimeLogs = runtime.logs.map((line) => withRuntimeStamp(line));
@@ -257,7 +258,9 @@ export default function App() {
 
       const runtime = await runTaskWorkflow({
         prompt: `${task.title}. Generate actionable execution output for this workflow.`,
-        apiKey: settings.openaiApiKey,
+        apiKey: settings.apiKey,
+        modelName: settings.modelName.trim() || "gpt-4o-mini",
+        baseUrl: settings.baseUrl,
       });
 
       const completed: AgentTask = {
@@ -305,9 +308,17 @@ export default function App() {
 
   async function persistSettings() {
     if (!settings) return;
-    await saveSettings(settings);
-    if (settings.desktopNotifications) {
-      await window.desktopApi?.notify("Nexus AI", "Configurations saved.");
+    try {
+      await saveSettings(settings);
+      const latest = await getSettings();
+      setSettings(latest);
+
+      if (latest.desktopNotifications) {
+        await window.desktopApi?.notify("Nexus AI", "Configurations saved.");
+      }
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      await window.desktopApi?.notify("Nexus AI", "Failed to save configurations.");
     }
   }
 
@@ -449,7 +460,7 @@ export default function App() {
                     {activeChat?.title ?? "Data Analysis Model"}
                   </Typography>
                   <Typography sx={{ mt: 0.5, color: "#667a99", fontSize: 28 / 2.3 }}>
-                    Running model: GPT-4 Turbo with Data Extension
+                    Running model: {settings.modelName || "gpt-4o-mini"} {settings.baseUrl ? `(${settings.baseUrl})` : ""}
                   </Typography>
                 </Box>
 
@@ -746,19 +757,28 @@ export default function App() {
 
                     <Stack spacing={1.8}>
                       <TextField
-                        label="OpenAI API Key"
-                        type="password"
-                        value={settings.openaiApiKey}
-                        onChange={(event) => setSettings({ ...settings, openaiApiKey: event.target.value })}
-                        helperText="Required for LangChain + LangGraph runtime inference."
+                        label="Model Name"
+                        value={settings.modelName}
+                        onChange={(event) => setSettings({ ...settings, modelName: event.target.value })}
+                        helperText="例如：gpt-4o-mini / gpt-4.1-mini"
                         fullWidth
                       />
 
                       <TextField
-                        label="Anthropic API Key"
+                        label="Base URL"
+                        value={settings.baseUrl}
+                        onChange={(event) => setSettings({ ...settings, baseUrl: event.target.value })}
+                        placeholder="https://api.openai.com/v1"
+                        helperText="可选，兼容 OpenAI API 的网关地址。留空使用默认地址。"
+                        fullWidth
+                      />
+
+                      <TextField
+                        label="API Key"
                         type="password"
-                        value={settings.anthropicApiKey}
-                        onChange={(event) => setSettings({ ...settings, anthropicApiKey: event.target.value })}
+                        value={settings.apiKey}
+                        onChange={(event) => setSettings({ ...settings, apiKey: event.target.value })}
+                        helperText="用于 LangChain + LangGraph 推理。"
                         fullWidth
                       />
                     </Stack>

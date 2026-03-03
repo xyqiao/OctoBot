@@ -2,6 +2,7 @@ export type RuntimeOptions = {
   prompt: string;
   apiKey?: string;
   modelName?: string;
+  baseUrl?: string;
 };
 
 export type RuntimeResult = {

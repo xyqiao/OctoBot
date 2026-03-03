@@ -33,8 +33,9 @@ export interface UserSettings {
   displayName: string;
   email: string;
   role: string;
-  openaiApiKey: string;
-  anthropicApiKey: string;
+  modelName: string;
+  baseUrl: string;
+  apiKey: string;
   desktopNotifications: boolean;
   developerLogging: boolean;
   dataTelemetry: boolean;

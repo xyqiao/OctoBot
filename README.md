@@ -58,5 +58,5 @@ pnpm build
 
 ## 说明
 
-- 若未填写 OpenAI API Key，系统会自动使用本地 Mock Agent 回复，便于离线演示。
-- API Key 保存在本地 SQLite 中（默认路径：`~/Library/Application Support/<app>/nexus-ai.sqlite`）。
+- 若未填写模型配置中的 `apiKey`，系统会自动使用本地 Mock Agent 回复，便于离线演示。
+- 模型配置字段为：`modelName`、`baseUrl`、`apiKey`，保存在本地 SQLite（默认路径：`~/Library/Application Support/<app>/nexus-ai.sqlite`）。

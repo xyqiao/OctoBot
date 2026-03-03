@@ -31,8 +31,8 @@ function toText(content) {
 async function runModel(model, systemPrompt, userPrompt) {
   if (!model) {
     return [
-      "[Mock-Agent] OpenAI API Key 未配置，当前返回本地演示结果。",
-      "建议：在 Personal Settings 中填入 OpenAI Key 后执行真实模型推理。",
+      "[Mock-Agent] API Key 未配置，当前返回本地演示结果。",
+      "建议：在 Personal Settings 中填入 modelName/baseUrl/apiKey 后执行真实模型推理。",
       "输入摘要:",
       userPrompt.slice(0, 220),
     ].join("\n");
@@ -46,16 +46,24 @@ async function runModel(model, systemPrompt, userPrompt) {
   return toText(response.content);
 }
 
-function createModel(apiKey, modelName = "gpt-4o-mini") {
+function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "") {
   if (!apiKey || !apiKey.trim()) {
     return null;
   }
 
-  return new ChatOpenAI({
+  const options = {
     apiKey,
     model: modelName,
     temperature: 0.2,
-  });
+  };
+
+  if (baseUrl && baseUrl.trim()) {
+    options.configuration = {
+      baseURL: baseUrl.trim(),
+    };
+  }
+
+  return new ChatOpenAI(options);
 }
 
 function buildGraph(model) {
@@ -109,8 +117,8 @@ function buildGraph(model) {
     .compile();
 }
 
-export async function runMultiAgentChat({ prompt, apiKey, modelName }) {
-  const model = createModel(apiKey, modelName);
+export async function runMultiAgentChat({ prompt, apiKey, modelName, baseUrl }) {
+  const model = createModel(apiKey, modelName, baseUrl);
   const graph = buildGraph(model);
 
   const result = await graph.invoke({
@@ -124,8 +132,8 @@ export async function runMultiAgentChat({ prompt, apiKey, modelName }) {
   };
 }
 
-export async function runTaskWorkflow({ prompt, apiKey, modelName }) {
-  const result = await runMultiAgentChat({ prompt, apiKey, modelName });
+export async function runTaskWorkflow({ prompt, apiKey, modelName, baseUrl }) {
+  const result = await runMultiAgentChat({ prompt, apiKey, modelName, baseUrl });
 
   return {
     answer: `Task completed.\n\n${result.answer}`,

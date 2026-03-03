@@ -7,8 +7,9 @@ const defaultSettings = {
   displayName: "John Doe",
   email: "",
   role: "Lead Data Scientist",
-  openaiApiKey: "",
-  anthropicApiKey: "",
+  modelName: "gpt-4o-mini",
+  baseUrl: "",
+  apiKey: "",
   desktopNotifications: true,
   developerLogging: false,
   dataTelemetry: true,
@@ -69,8 +70,9 @@ function toSettings(row) {
     displayName: row.display_name,
     email: row.email,
     role: row.role,
-    openaiApiKey: row.openai_api_key,
-    anthropicApiKey: row.anthropic_api_key,
+    modelName: row.model_name || defaultSettings.modelName,
+    baseUrl: row.base_url || "",
+    apiKey: row.api_key || "",
     desktopNotifications: Boolean(row.desktop_notifications),
     developerLogging: Boolean(row.developer_logging),
     dataTelemetry: Boolean(row.data_telemetry),
@@ -117,13 +119,51 @@ function ensureSchema(db) {
       display_name TEXT NOT NULL,
       email TEXT NOT NULL,
       role TEXT NOT NULL,
-      openai_api_key TEXT NOT NULL,
-      anthropic_api_key TEXT NOT NULL,
+      model_name TEXT NOT NULL,
+      base_url TEXT NOT NULL,
+      api_key TEXT NOT NULL,
       desktop_notifications INTEGER NOT NULL,
       developer_logging INTEGER NOT NULL,
       data_telemetry INTEGER NOT NULL
     );
   `);
+
+  const columns = db.prepare("PRAGMA table_info(settings)").all().map((col) => col.name);
+  const expectedSettingsColumns = [
+    "id",
+    "display_name",
+    "email",
+    "role",
+    "model_name",
+    "base_url",
+    "api_key",
+    "desktop_notifications",
+    "developer_logging",
+    "data_telemetry",
+  ];
+
+  const hasSchemaMismatch =
+    columns.length !== expectedSettingsColumns.length ||
+    expectedSettingsColumns.some((column) => !columns.includes(column));
+
+  // Project is pre-release: if schema mismatches, reset settings table to the current shape.
+  if (hasSchemaMismatch) {
+    db.exec(`
+      DROP TABLE IF EXISTS settings;
+      CREATE TABLE settings (
+        id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        role TEXT NOT NULL,
+        model_name TEXT NOT NULL,
+        base_url TEXT NOT NULL,
+        api_key TEXT NOT NULL,
+        desktop_notifications INTEGER NOT NULL,
+        developer_logging INTEGER NOT NULL,
+        data_telemetry INTEGER NOT NULL
+      );
+    `);
+  }
 }
 
 function createStorage(userDataDir) {
@@ -156,18 +196,19 @@ function createStorage(userDataDir) {
     ),
     upsertSettings: db.prepare(
       `INSERT INTO settings (
-         id, display_name, email, role, openai_api_key, anthropic_api_key,
+         id, display_name, email, role, model_name, base_url, api_key,
          desktop_notifications, developer_logging, data_telemetry
        ) VALUES (
-         @id, @displayName, @email, @role, @openaiApiKey, @anthropicApiKey,
+         @id, @displayName, @email, @role, @modelName, @baseUrl, @apiKey,
          @desktopNotifications, @developerLogging, @dataTelemetry
        )
        ON CONFLICT(id) DO UPDATE SET
          display_name = excluded.display_name,
          email = excluded.email,
          role = excluded.role,
-         openai_api_key = excluded.openai_api_key,
-         anthropic_api_key = excluded.anthropic_api_key,
+         model_name = excluded.model_name,
+         base_url = excluded.base_url,
+         api_key = excluded.api_key,
          desktop_notifications = excluded.desktop_notifications,
          developer_logging = excluded.developer_logging,
          data_telemetry = excluded.data_telemetry`,
@@ -322,11 +363,19 @@ function createStorage(userDataDir) {
   }
 
   function saveSettings(settings) {
-    queries.upsertSettings.run({
+    const normalized = {
+      ...defaultSettings,
       ...settings,
-      desktopNotifications: Number(settings.desktopNotifications),
-      developerLogging: Number(settings.developerLogging),
-      dataTelemetry: Number(settings.dataTelemetry),
+      modelName: String(settings.modelName || defaultSettings.modelName),
+      baseUrl: String(settings.baseUrl || ""),
+      apiKey: String(settings.apiKey || ""),
+    };
+
+    queries.upsertSettings.run({
+      ...normalized,
+      desktopNotifications: Number(normalized.desktopNotifications),
+      developerLogging: Number(normalized.developerLogging),
+      dataTelemetry: Number(normalized.dataTelemetry),
     });
     return true;
   }
