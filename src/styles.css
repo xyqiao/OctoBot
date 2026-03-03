@@ -5,10 +5,12 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 body {
   background: linear-gradient(180deg, #edf2f9 0%, #eef2f8 80%);
+  overscroll-behavior: none;
 }
 
 * {
@@ -23,4 +25,126 @@ body {
 ::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background-color: rgba(104, 126, 164, 0.35);
+}
+
+.nexus-chat-shell {
+  --aui-primary: 211 83% 50%;
+  --aui-primary-foreground: 0 0% 100%;
+  --aui-ring: 211 83% 50%;
+  --aui-border: 214 35% 88%;
+  --aui-input: 214 35% 88%;
+  --aui-muted: 216 36% 95%;
+  --aui-muted-foreground: 216 21% 46%;
+  --aui-background: 220 63% 98%;
+  --aui-foreground: 224 34% 17%;
+  --aui-thread-max-width: 100%;
+  height: 100%;
+}
+
+.nexus-chat-shell .aui-thread-root {
+  background: #f5f8ff;
+}
+
+.nexus-chat-shell .aui-thread-viewport {
+  padding: 20px 24px 8px;
+  overflow-x: hidden;
+}
+
+.nexus-chat-shell .aui-thread-viewport-footer {
+  padding-bottom: 12px;
+  background: #f5f8ff;
+}
+
+.nexus-chat-shell .aui-user-message-content {
+  border-radius: 4px;
+  border: 1px solid #1978e8;
+  background: #1875e7;
+  color: #ffffff;
+  padding: 10px 14px;
+  width: max-content;
+  max-width: 50%;
+}
+
+.nexus-chat-shell .nexus-user-message-root {
+  grid-template-columns: minmax(72px, 1fr) auto auto;
+}
+
+.nexus-chat-shell .nexus-user-avatar {
+  grid-column-start: 3;
+  grid-row-start: 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #21a5f1;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  margin-left: 10px;
+}
+
+.nexus-chat-shell .aui-user-message-content .aui-text {
+  display: inline;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.nexus-chat-shell .aui-assistant-message-content {
+  border-radius: 4px;
+  border: 1px solid #dce6f4;
+  background: #f8fbff;
+  color: #1d2740;
+  padding: 10px 14px;
+}
+
+.nexus-chat-shell .aui-composer-root {
+  border: 2px solid #3489f4;
+  border-radius: 12px;
+  background: #fbfdff;
+  min-height: 70px;
+}
+
+.nexus-chat-shell .aui-composer-input {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.nexus-chat-shell .aui-composer-send,
+.nexus-chat-shell .aui-composer-cancel,
+.nexus-chat-shell .aui-composer-attach {
+  border-radius: 999px;
+}
+
+.nexus-chat-shell .nexus-markdown {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.nexus-chat-shell .nexus-markdown p {
+  margin: 0;
+}
+
+.nexus-chat-shell .nexus-thinking {
+  color: #6f7f98;
+  font-size: 14px;
+}
+
+.nexus-chat-shell .nexus-thinking-dots {
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  animation: nexus-thinking-dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes nexus-thinking-dots {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 3ch;
+  }
 }

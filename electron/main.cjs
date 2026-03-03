@@ -5,6 +5,7 @@ const { pathToFileURL } = require("url");
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let storage = null;
+const activeChatStreams = new Map();
 
 function watchDistAndReload(win) {
   const distDir = path.join(__dirname, "../dist");
@@ -89,6 +90,54 @@ app
   ipcMain.handle("agent:chat", async (_event, payload) => {
     const runtime = await getRuntime();
     return runtime.runMultiAgentChat(payload);
+  });
+
+  ipcMain.handle("agent:chat:stream/start", async (event, { streamId, payload }) => {
+    if (!streamId || !payload) {
+      throw new Error("Invalid stream start payload.");
+    }
+
+    const runtime = await getRuntime();
+    const channel = `agent:chat:stream:${streamId}`;
+    const controller = new AbortController();
+    activeChatStreams.set(streamId, controller);
+
+    const send = (data) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(channel, data);
+      }
+    };
+
+    void (async () => {
+      try {
+        const result = await runtime.runMultiAgentChatStream({
+          ...payload,
+          signal: controller.signal,
+          onChunk: (chunk) => send({ type: "chunk", chunk }),
+          onLog: (log) => send({ type: "log", log }),
+        });
+        send({ type: "done", ...result });
+      } catch (error) {
+        send({
+          type: "error",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        activeChatStreams.delete(streamId);
+      }
+    })();
+
+    return true;
+  });
+
+  ipcMain.handle("agent:chat:stream/cancel", (_event, streamId) => {
+    const controller = activeChatStreams.get(streamId);
+    if (!controller) {
+      return false;
+    }
+    controller.abort();
+    activeChatStreams.delete(streamId);
+    return true;
   });
 
   ipcMain.handle("agent:task", async (_event, payload) => {

@@ -49,11 +49,43 @@ interface AgentRuntimeResult {
   logs: string[];
 }
 
+interface AgentRuntimeStreamChunkEvent {
+  type: "chunk";
+  chunk: string;
+}
+
+interface AgentRuntimeStreamLogEvent {
+  type: "log";
+  log: string;
+}
+
+interface AgentRuntimeStreamDoneEvent {
+  type: "done";
+  answer: string;
+  logs: string[];
+}
+
+interface AgentRuntimeStreamErrorEvent {
+  type: "error";
+  error: string;
+}
+
+type AgentRuntimeStreamEvent =
+  | AgentRuntimeStreamChunkEvent
+  | AgentRuntimeStreamLogEvent
+  | AgentRuntimeStreamDoneEvent
+  | AgentRuntimeStreamErrorEvent;
+
 declare global {
   interface Window {
     desktopApi?: {
       notify: (title: string, body: string) => Promise<boolean>;
       runAgentChat: (payload: AgentRuntimePayload) => Promise<AgentRuntimeResult>;
+      runAgentChatStream: (
+        payload: AgentRuntimePayload,
+        onEvent: (event: AgentRuntimeStreamEvent) => void,
+      ) => Promise<string>;
+      cancelAgentChatStream: (streamId: string) => Promise<boolean>;
       runTaskWorkflow: (payload: AgentRuntimePayload) => Promise<AgentRuntimeResult>;
       bootstrapData: () => Promise<boolean>;
       listChats: () => Promise<DesktopChatSession[]>;

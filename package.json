@@ -20,6 +20,9 @@
     "rebuild:native": "cross-env npm_config_devdir=.electron-gyp npm_config_disturl=https://npmmirror.com/mirrors/electron/ electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.12.14",
+    "@assistant-ui/react-streamdown": "^0.1.4",
+    "@assistant-ui/react-ui": "^0.2.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@langchain/langgraph": "^0.2.68",
@@ -29,7 +32,8 @@
     "better-sqlite3": "^12.6.2",
     "langchain": "^0.3.31",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "streamdown": "^2.3.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
