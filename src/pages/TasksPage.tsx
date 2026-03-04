@@ -132,6 +132,19 @@ export default function TasksPage() {
   const [createPayloadText, setCreatePayloadText] = useState("{}");
   const [createFormError, setCreateFormError] = useState("");
 
+  const payloadPlaceholder = useMemo(() => {
+    if (createTaskType === "file_ops") {
+      return '{"toolCalls":[{"name":"file_read_text","args":{"path":"./README.md"}}]}';
+    }
+    if (createTaskType === "office_doc") {
+      return '{"toolCalls":[{"name":"office_read_document","args":{"path":"./report.xlsx","sheetName":"Sheet1"}}]}';
+    }
+    if (createTaskType === "social_publish") {
+      return '{"toolCalls":[{"name":"social_publish_run","args":{"platform":"xiaohongshu","mode":"draft","title":"标题","content":"正文","mediaPaths":["~/Desktop/cover.png"]}}]}';
+    }
+    return '{"toolCalls":[{"name":"file_list_directory","args":{"path":"./","maxEntries":50}}]}';
+  }, [createTaskType]);
+
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === selectedTaskId) ?? null,
     [tasks, selectedTaskId],
@@ -867,7 +880,8 @@ export default function TasksPage() {
               multiline
               minRows={8}
               fullWidth
-              placeholder='{"target":"example"}'
+              placeholder={payloadPlaceholder}
+              helperText="支持 payload.toolCalls 或 payload.operations。可用工具：file_read_text、file_write_text、file_list_directory、office_read_document、office_write_document、browser_playwright_run、social_publish_run。可选 payload.allowedRoots 限制目录。"
               sx={{
                 "& textarea": {
                   fontFamily: "Consolas, Menlo, monospace",

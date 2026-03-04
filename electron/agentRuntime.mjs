@@ -1,84 +1,71 @@
-import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import { createAgent } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createLangChainTools, listCapabilityTools } from "./agentTools/langchainTools.mjs";
 
-const AgentState = Annotation.Root({
-  prompt: Annotation,
-  plan: Annotation,
-  analysis: Annotation,
-  answer: Annotation,
-  logs: Annotation({
-    reducer: (left, right) => [...left, ...right],
-    default: () => [],
-  }),
-});
+const TOOL_AWARE_SYSTEM_PROMPT = [
+  "你是桌面端智能体。",
+  "你可以调用本地工具执行文件读写、办公文档处理、浏览器自动化与自媒体发布。",
+  "当任务需要真实操作时，优先调用工具，不要只停留在建议层。",
+  "输出使用简洁 Markdown，先给结论，再给关键细节。",
+].join("\n");
 
 function toText(content) {
-  if (typeof content === "string") return content;
+  if (typeof content === "string") {
+    return content;
+  }
   if (Array.isArray(content)) {
     return content
       .map((item) => {
-        if (typeof item === "string") return item;
+        if (typeof item === "string") {
+          return item;
+        }
         if (item && typeof item === "object" && "text" in item) {
           return String(item.text);
         }
-        return JSON.stringify(item);
+        return "";
       })
+      .filter(Boolean)
       .join("\n");
   }
   return String(content ?? "");
 }
 
-function buildChatMessages(systemPrompt, userPrompt) {
-  return [
-    new SystemMessage(systemPrompt),
-    new HumanMessage(userPrompt),
-  ];
-}
-
-async function runModel(model, systemPrompt, userPrompt) {
-  if (!model) {
-    return [
-      "[Mock-Agent] API Key 未配置，当前返回本地演示结果。",
-      "建议：在个人设置中填入 modelName/baseUrl/apiKey 后执行真实模型推理。",
-      "输入摘要:",
-      userPrompt.slice(0, 220),
-    ].join("\n");
+function chunkText(answer, chunkSize = 160) {
+  const text = toText(answer);
+  if (!text) {
+    return [];
+  }
+  if (text.length <= chunkSize) {
+    return [text];
   }
 
-  const response = await model.invoke(buildChatMessages(systemPrompt, userPrompt));
-
-  return toText(response.content);
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    chunks.push(text.slice(start, start + chunkSize));
+    start += chunkSize;
+  }
+  return chunks;
 }
 
-async function runModelStream(model, systemPrompt, userPrompt, { signal, onChunk } = {}) {
-  if (!model) {
-    const fallbackText = [
-      "[Mock-Agent] API Key 未配置，当前返回本地演示结果。",
-      "建议：在个人设置中填入 modelName/baseUrl/apiKey 后执行真实模型推理。",
-      "输入摘要:",
-      userPrompt.slice(0, 220),
-    ].join("\n");
-    onChunk?.(fallbackText);
-    return fallbackText;
-  }
-
-  const stream = await model.stream(
-    buildChatMessages(systemPrompt, userPrompt),
-    { signal },
-  );
-
-  let answer = "";
-  for await (const chunk of stream) {
-    const delta = toText(chunk.content);
-    if (!delta) {
-      continue;
+function summarizeJson(value, maxLen = 240) {
+  try {
+    const text = JSON.stringify(value);
+    if (!text) {
+      return "";
     }
-    answer += delta;
-    onChunk?.(delta);
+    if (text.length <= maxLen) {
+      return text;
+    }
+    return `${text.slice(0, maxLen)}...(truncated)`;
+  } catch {
+    return "";
   }
+}
 
-  return answer;
+function pushLog(logs, onLog, text) {
+  logs.push(text);
+  onLog?.(text);
 }
 
 function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "") {
@@ -101,70 +88,215 @@ function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "") {
   return new ChatOpenAI(options);
 }
 
-function buildPlanningGraph(model) {
-  const planner = async (state) => {
-    const plan = await runModel(
-      model,
-      "你是规划智能体。请将用户需求拆解为简洁、可执行的步骤，按优先级输出。",
-      state.prompt,
-    );
-
-    return {
-      plan,
-      logs: ["[INFO] 规划智能体已完成任务拆解。"],
-    };
-  };
-
-  const analyst = async (state) => {
-    const analysis = await runModel(
-      model,
-      "你是分析智能体。请基于用户需求与任务计划给出结构化分析，突出依据、假设与风险。",
-      `需求：\n${state.prompt}\n\n计划：\n${state.plan}`,
-    );
-
-    return {
-      analysis,
-      logs: ["[INFO] 分析智能体已完成结构化分析。"],
-    };
-  };
-
-  return new StateGraph(AgentState)
-    .addNode("planner", planner)
-    .addNode("analyst", analyst)
-    .addEdge(START, "planner")
-    .addEdge("planner", "analyst")
-    .addEdge("analyst", END)
-    .compile();
-}
-
-export async function runMultiAgentChatStream({ prompt, apiKey, modelName, baseUrl, signal, onChunk, onLog }) {
-  const model = createModel(apiKey, modelName, baseUrl);
-  const planningGraph = buildPlanningGraph(model);
-
-  const planningResult = await planningGraph.invoke({
-    prompt,
-    logs: ["[INFO] 多智能体工作流已启动。"],
-  });
-
-  for (const log of planningResult.logs) {
-    onLog?.(log);
+function extractAssistantAnswer(messages) {
+  if (!Array.isArray(messages)) {
+    return "";
   }
 
-  const answer = await runModelStream(
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    const type =
+      typeof message?.getType === "function"
+        ? message.getType()
+        : message?._getType?.();
+
+    if (type === "ai" || message?.role === "assistant") {
+      return toText(message.content);
+    }
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  return toText(lastMessage?.content);
+}
+
+function extractEventTextChunk(event) {
+  const chunk = event?.data?.chunk;
+  if (!chunk) {
+    return "";
+  }
+
+  if (typeof chunk === "string") {
+    return chunk;
+  }
+
+  if (typeof chunk?.text === "string") {
+    return chunk.text;
+  }
+
+  if (chunk?.message?.content !== undefined) {
+    return toText(chunk.message.content);
+  }
+
+  if (chunk?.content !== undefined) {
+    return toText(chunk.content);
+  }
+
+  return "";
+}
+
+function extractEventFinalText(event) {
+  const output = event?.data?.output;
+  if (!output) {
+    return "";
+  }
+  if (output?.message?.content !== undefined) {
+    return toText(output.message.content);
+  }
+  if (output?.content !== undefined) {
+    return toText(output.content);
+  }
+  return toText(output);
+}
+
+function buildToolEventLog(event) {
+  if (event.event === "on_tool_start") {
+    return `[TOOL] 开始 ${event.name} ${summarizeJson(event?.data?.input)}`.trim();
+  }
+  if (event.event === "on_tool_end") {
+    return `[TOOL] 完成 ${event.name} ${summarizeJson(event?.data?.output)}`.trim();
+  }
+  if (event.event === "on_tool_error") {
+    return `[TOOL] 失败 ${event.name}: ${toText(event?.data?.error)}`;
+  }
+  return "";
+}
+
+async function runToolAwareAgent({ prompt, model, signal, onChunk, onLog }) {
+  const logs = [];
+
+  if (!model) {
+    const supportedTools = listCapabilityTools()
+      .map((item) => `- ${item.name}: ${item.description}`)
+      .join("\n");
+
+    const fallbackAnswer = [
+      "[Mock-Agent] API Key 未配置，当前无法执行真实模型推理。",
+      "请在设置中配置 modelName/baseUrl/apiKey 后重试。",
+      "",
+      "已注册工具能力：",
+      supportedTools,
+      "",
+      "输入摘要：",
+      prompt.slice(0, 260),
+    ].join("\n");
+
+    for (const part of chunkText(fallbackAnswer)) {
+      onChunk?.(part);
+    }
+    pushLog(logs, onLog, "[WARN] API key unavailable, returned mock result.");
+
+    return {
+      answer: fallbackAnswer,
+      logs,
+    };
+  }
+
+  const tools = createLangChainTools({
+    baseDir: process.cwd(),
+    runContext: {
+      source: "chat_agent",
+    },
+    onLog: (message) => {
+      pushLog(logs, onLog, `[TOOL] ${message}`);
+    },
+  });
+
+  const agent = createAgent({
     model,
-    "你是汇报智能体。请输出可执行、可落地的 Markdown 回复，结论清晰，必要时使用列表或表格。",
-    `需求：\n${prompt}\n\n计划：\n${planningResult.plan}\n\n分析：\n${planningResult.analysis}`,
-    { signal, onChunk },
-  );
+    tools,
+    prompt: TOOL_AWARE_SYSTEM_PROMPT,
+  });
 
-  const logs = [...planningResult.logs, "[INFO] 汇报智能体已生成最终输出。", "[INFO] 工作流执行完成。"];
-  onLog?.("[INFO] 汇报智能体已生成最终输出。");
-  onLog?.("[INFO] 工作流执行完成。");
+  pushLog(logs, onLog, "[INFO] 工具智能体已启动（token 流式）。");
 
+  const stateInput = {
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  };
+
+  let answer = "";
+  let latestModelOutput = "";
+
+  const eventStream = agent.streamEvents(stateInput, {
+    signal,
+    version: "v2",
+  });
+
+  for await (const event of eventStream) {
+    if (!event || typeof event !== "object") {
+      continue;
+    }
+
+    if (event.event === "on_chat_model_stream") {
+      const delta = extractEventTextChunk(event);
+      if (delta) {
+        answer += delta;
+        onChunk?.(delta);
+      }
+      continue;
+    }
+
+    if (event.event === "on_chat_model_end") {
+      const finalText = extractEventFinalText(event);
+      if (finalText) {
+        latestModelOutput = finalText;
+      }
+      continue;
+    }
+
+    if (
+      event.event === "on_tool_start" ||
+      event.event === "on_tool_end" ||
+      event.event === "on_tool_error"
+    ) {
+      const logLine = buildToolEventLog(event);
+      if (logLine) {
+        pushLog(logs, onLog, logLine);
+      }
+    }
+  }
+
+  if (!answer && latestModelOutput) {
+    answer = latestModelOutput;
+    onChunk?.(answer);
+  }
+
+  if (!answer) {
+    const result = await agent.invoke(stateInput, { signal });
+    answer = extractAssistantAnswer(result?.messages || []);
+    if (answer) {
+      onChunk?.(answer);
+    }
+  }
+
+  pushLog(logs, onLog, "[INFO] 工具智能体执行完成。");
   return {
     answer,
     logs,
   };
+}
+
+export async function runMultiAgentChatStream({
+  prompt,
+  apiKey,
+  modelName,
+  baseUrl,
+  signal,
+  onChunk,
+  onLog,
+}) {
+  const model = createModel(apiKey, modelName, baseUrl);
+  return runToolAwareAgent({
+    prompt,
+    model,
+    signal,
+    onChunk,
+    onLog,
+  });
 }
 
 export async function runMultiAgentChat({ prompt, apiKey, modelName, baseUrl }) {
@@ -177,7 +309,12 @@ export async function runMultiAgentChat({ prompt, apiKey, modelName, baseUrl }) 
 }
 
 export async function runTaskWorkflow({ prompt, apiKey, modelName, baseUrl }) {
-  const result = await runMultiAgentChat({ prompt, apiKey, modelName, baseUrl });
+  const result = await runMultiAgentChat({
+    prompt,
+    apiKey,
+    modelName,
+    baseUrl,
+  });
 
   return {
     answer: `任务已完成。\n\n${result.answer}`,

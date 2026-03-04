@@ -30,11 +30,16 @@
     "@mui/icons-material": "^6.4.7",
     "@mui/material": "^6.4.7",
     "better-sqlite3": "^12.6.2",
+    "docx": "^9.6.0",
     "langchain": "^1.2.29",
+    "mammoth": "^1.11.0",
+    "playwright": "^1.58.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-syntax-highlighter": "^16.1.1",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "xlsx": "^0.18.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",

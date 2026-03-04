@@ -1,4 +1,4 @@
-import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import TextsmsOutlinedIcon from "@mui/icons-material/TextsmsOutlined";
 import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import {
   Box,
@@ -17,7 +17,10 @@ type ChatListItemProps = {
   onSelect: (chatId: string) => void;
   onHoverStart: (chatId: string) => void;
   onHoverEnd: (chatId: string) => void;
-  onMenuButtonClick: (event: MouseEvent<HTMLButtonElement>, chatId: string) => void;
+  onMenuButtonClick: (
+    event: MouseEvent<HTMLButtonElement>,
+    chatId: string,
+  ) => void;
 };
 
 export default function ChatListItem({
@@ -50,7 +53,7 @@ export default function ChatListItem({
         }}
       >
         <ListItemIcon sx={{ minWidth: 38 }}>
-          <ChatBubbleOutlineRoundedIcon color={selected ? "primary" : "action"} />
+          <TextsmsOutlinedIcon color={selected ? "primary" : "action"} />
         </ListItemIcon>
         <ListItemText
           sx={{ minWidth: 0, overflow: "hidden" }}
@@ -87,4 +90,3 @@ export default function ChatListItem({
     </Box>
   );
 }
-
