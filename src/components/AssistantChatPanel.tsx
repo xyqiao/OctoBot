@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useRef, type FC } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type FC,
+} from "react";
 import {
   AssistantRuntimeProvider,
-  INTERNAL,
   MessagePrimitive,
   useLocalRuntime,
   type ChatModelAdapter,
@@ -14,8 +19,6 @@ import {
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
 } from "@assistant-ui/react";
-import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
-import { code } from "@streamdown/code";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import {
   AttachmentUI,
@@ -23,7 +26,23 @@ import {
   MessagePart,
   Thread,
   UserActionBar,
+  makeMarkdownText,
 } from "@assistant-ui/react-ui";
+import { PrismLight as ReactSyntaxHighlighter } from "react-syntax-highlighter";
+import oneDark from "react-syntax-highlighter/dist/esm/styles/prism/one-dark";
+import langBash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import langCss from "react-syntax-highlighter/dist/esm/languages/prism/css";
+import langJavascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import langJsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx";
+import langJson from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import langMarkdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+import langMarkup from "react-syntax-highlighter/dist/esm/languages/prism/markup";
+import langPython from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import langSql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import langTsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
+import langTypescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import langYaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import remarkGfm from "remark-gfm";
 import { appendMessage } from "../utils/db";
 import { runMultiAgentChatStream } from "../utils/graphRuntime";
 import type { ChatMessage, UserSettings } from "../types";
@@ -37,6 +56,29 @@ type AssistantChatPanelProps = {
 
 const TEXT_ATTACHMENT_PREVIEW_LIMIT = 4_000;
 const TEXT_ATTACHMENT_DECODE_BYTE_LIMIT = 12_000;
+const prismLanguageAliases: Record<string, string> = {
+  js: "javascript",
+  jsx: "jsx",
+  ts: "typescript",
+  tsx: "tsx",
+  json: "json",
+  jsonc: "json",
+  json5: "json",
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  bash: "bash",
+  py: "python",
+  python: "python",
+  sql: "sql",
+  css: "css",
+  html: "markup",
+  xml: "markup",
+  md: "markdown",
+  markdown: "markdown",
+  yml: "yaml",
+  yaml: "yaml",
+};
 const textLikeFileExtensions = [
   ".txt",
   ".md",
@@ -60,6 +102,26 @@ const textLikeFileExtensions = [
   ".sql",
   ".log",
 ];
+
+ReactSyntaxHighlighter.registerLanguage("javascript", langJavascript);
+ReactSyntaxHighlighter.registerLanguage("jsx", langJsx);
+ReactSyntaxHighlighter.registerLanguage("typescript", langTypescript);
+ReactSyntaxHighlighter.registerLanguage("tsx", langTsx);
+ReactSyntaxHighlighter.registerLanguage("json", langJson);
+ReactSyntaxHighlighter.registerLanguage("bash", langBash);
+ReactSyntaxHighlighter.registerLanguage("python", langPython);
+ReactSyntaxHighlighter.registerLanguage("sql", langSql);
+ReactSyntaxHighlighter.registerLanguage("css", langCss);
+ReactSyntaxHighlighter.registerLanguage("markup", langMarkup);
+ReactSyntaxHighlighter.registerLanguage("markdown", langMarkdown);
+ReactSyntaxHighlighter.registerLanguage("yaml", langYaml);
+
+type MarkdownTextComponents = NonNullable<
+  NonNullable<Parameters<typeof makeMarkdownText>[0]>["components"]
+>;
+type MarkdownSyntaxHighlighterProps = ComponentProps<
+  NonNullable<MarkdownTextComponents["SyntaxHighlighter"]>
+>;
 
 function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
@@ -313,18 +375,53 @@ class DocumentAttachmentAdapter {
   }
 }
 
-const MarkdownTextBase = () => {
-  const plugins = useMemo(() => ({ code }), []);
+function normalizePrismLanguage(language?: string) {
+  if (!language) {
+    return "";
+  }
+  const key = language.toLowerCase().trim();
+  return prismLanguageAliases[key] ?? key;
+}
+
+const MarkdownSyntaxHighlighter = ({
+  components,
+  language,
+  code,
+}: MarkdownSyntaxHighlighterProps) => {
+  const { Pre, Code } = components;
+  const normalizedLanguage = normalizePrismLanguage(language);
+
+  if (!normalizedLanguage) {
+    return (
+      <Pre>
+        <Code>{code}</Code>
+      </Pre>
+    );
+  }
 
   return (
-    <StreamdownTextPrimitive
-      parseIncompleteMarkdown
-      containerClassName="nexus-markdown"
-      plugins={plugins}
-    />
+    <ReactSyntaxHighlighter
+      language={normalizedLanguage}
+      style={oneDark}
+      PreTag={Pre as never}
+      CodeTag={Code as never}
+      customStyle={{
+        margin: 0,
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+      }}
+    >
+      {code}
+    </ReactSyntaxHighlighter>
   );
 };
-const MarkdownText = INTERNAL.withSmoothContextProvider(MarkdownTextBase);
+
+const MarkdownText = makeMarkdownText({
+  remarkPlugins: [remarkGfm],
+  components: {
+    SyntaxHighlighter: MarkdownSyntaxHighlighter,
+  },
+});
 
 const ThinkingText: FC<EmptyMessagePartProps> = ({ status }) => {
   if (status.type !== "running") {

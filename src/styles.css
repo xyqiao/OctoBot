@@ -101,6 +101,16 @@ body {
   padding: 10px 14px;
 }
 
+.nexus-chat-shell .aui-code-header-root + .aui-md-pre {
+  margin-top: 0;
+}
+
+.nexus-chat-shell .aui-md-pre {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .nexus-chat-shell .aui-composer-root {
   border: 2px solid #3489f4;
   border-radius: 12px;
@@ -117,171 +127,6 @@ body {
 .nexus-chat-shell .aui-composer-cancel,
 .nexus-chat-shell .aui-composer-attach {
   border-radius: 999px;
-}
-
-.nexus-chat-shell .nexus-markdown {
-  font-size: 14px;
-  line-height: 1.65;
-  color: #1d2740;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.nexus-chat-shell .nexus-markdown > *:first-child {
-  margin-top: 0;
-}
-
-.nexus-chat-shell .nexus-markdown > *:last-child {
-  margin-bottom: 0;
-}
-
-.nexus-chat-shell .nexus-markdown p {
-  margin: 0.85em 0;
-}
-
-.nexus-chat-shell .nexus-markdown h1,
-.nexus-chat-shell .nexus-markdown [data-streamdown="heading-1"] {
-  margin: 1.2em 0 0.5em;
-  font-size: 1.7rem;
-  line-height: 1.25;
-  font-weight: 700;
-}
-
-.nexus-chat-shell .nexus-markdown h2,
-.nexus-chat-shell .nexus-markdown [data-streamdown="heading-2"] {
-  margin: 1.1em 0 0.45em;
-  font-size: 1.4rem;
-  line-height: 1.3;
-  font-weight: 700;
-}
-
-.nexus-chat-shell .nexus-markdown h3,
-.nexus-chat-shell .nexus-markdown [data-streamdown="heading-3"] {
-  margin: 1em 0 0.45em;
-  font-size: 1.2rem;
-  line-height: 1.35;
-  font-weight: 700;
-}
-
-.nexus-chat-shell .nexus-markdown h4,
-.nexus-chat-shell .nexus-markdown [data-streamdown="heading-4"],
-.nexus-chat-shell .nexus-markdown h5,
-.nexus-chat-shell .nexus-markdown [data-streamdown="heading-5"],
-.nexus-chat-shell .nexus-markdown h6,
-.nexus-chat-shell .nexus-markdown [data-streamdown="heading-6"] {
-  margin: 0.95em 0 0.4em;
-  font-weight: 700;
-}
-
-.nexus-chat-shell .nexus-markdown a,
-.nexus-chat-shell .nexus-markdown [data-streamdown="link"] {
-  color: #1573e6;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.nexus-chat-shell .nexus-markdown strong,
-.nexus-chat-shell .nexus-markdown [data-streamdown="strong"] {
-  font-weight: 700;
-}
-
-.nexus-chat-shell .nexus-markdown ul,
-.nexus-chat-shell .nexus-markdown ol,
-.nexus-chat-shell .nexus-markdown [data-streamdown="unordered-list"],
-.nexus-chat-shell .nexus-markdown [data-streamdown="ordered-list"] {
-  margin: 0.85em 0;
-  padding-left: 1.5rem;
-}
-
-.nexus-chat-shell .nexus-markdown li,
-.nexus-chat-shell .nexus-markdown [data-streamdown="list-item"] {
-  margin: 0.25em 0;
-}
-
-.nexus-chat-shell .nexus-markdown blockquote,
-.nexus-chat-shell .nexus-markdown [data-streamdown="blockquote"] {
-  margin: 1em 0;
-  border-left: 3px solid #ced8eb;
-  padding-left: 0.9rem;
-  color: #5c6d87;
-}
-
-.nexus-chat-shell .nexus-markdown hr,
-.nexus-chat-shell .nexus-markdown [data-streamdown="horizontal-rule"] {
-  margin: 1.1em 0;
-  border: none;
-  border-top: 1px solid #d7e0ef;
-}
-
-.nexus-chat-shell .nexus-markdown code:not(pre code),
-.nexus-chat-shell .nexus-markdown [data-streamdown="inline-code"],
-.nexus-chat-shell .nexus-markdown .aui-streamdown-inline-code {
-  border: 1px solid #d8e2f0;
-  background: #f2f6fc;
-  border-radius: 6px;
-  padding: 0.08rem 0.35rem;
-  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 0.9em;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="code-block"],
-.nexus-chat-shell .nexus-markdown [data-streamdown="mermaid-block"] {
-  margin: 1em 0;
-  border: 1px solid #d7e0ef;
-  border-radius: 10px;
-  background: #f8fbff;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="code-block-header"] {
-  height: auto;
-  min-height: 30px;
-  border-bottom: 1px solid #d7e0ef;
-  padding: 0.35rem 0.6rem;
-  color: #60708d;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="code-block-actions"] button,
-.nexus-chat-shell .nexus-markdown [data-streamdown="code-block-download-button"],
-.nexus-chat-shell .nexus-markdown [data-streamdown="code-block-copy-button"] {
-  border: 1px solid #d3deef;
-  border-radius: 6px;
-  background: #ffffff;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="code-block-body"] {
-  border: none;
-  background: #0f172a;
-  border-radius: 0 0 10px 10px;
-  color: #e2e8f0;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="code-block-body"] pre {
-  margin: 0;
-  overflow-x: auto;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="table-wrapper"] {
-  margin: 1em 0;
-  border: 1px solid #d7e0ef;
-  border-radius: 10px;
-  background: #f8fbff;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="table"] {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="table-header-cell"] {
-  background: #edf3fd;
-  color: #2b3b57;
-  font-weight: 700;
-}
-
-.nexus-chat-shell .nexus-markdown [data-streamdown="table-header-cell"],
-.nexus-chat-shell .nexus-markdown [data-streamdown="table-cell"] {
-  border: 1px solid #d7e0ef;
-  padding: 0.45rem 0.6rem;
 }
 
 .nexus-chat-shell .nexus-thinking {

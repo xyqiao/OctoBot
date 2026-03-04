@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@assistant-ui/react": "^0.12.14",
-    "@assistant-ui/react-streamdown": "^0.1.4",
     "@assistant-ui/react-ui": "^0.2.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -29,12 +28,12 @@
     "@langchain/openai": "^0.4.5",
     "@mui/icons-material": "^6.4.7",
     "@mui/material": "^6.4.7",
-    "@streamdown/code": "^1.0.3",
     "better-sqlite3": "^12.6.2",
     "langchain": "^0.3.31",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "streamdown": "^2.3.0"
+    "react-syntax-highlighter": "^16.1.1",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
@@ -42,6 +41,7 @@
     "@types/node": "^22.13.10",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",

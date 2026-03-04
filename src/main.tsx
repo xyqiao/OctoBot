@@ -5,7 +5,6 @@ import App from "./App";
 import { appTheme } from "./theme";
 import "@assistant-ui/react-ui/styles/index.css";
 import "@assistant-ui/react-ui/styles/markdown.css";
-import "streamdown/styles.css";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
