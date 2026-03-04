@@ -62,7 +62,10 @@ export default function AppSidebar({
   const [menuChatId, setMenuChatId] = useState<string>("");
   const [hoveredChatId, setHoveredChatId] = useState<string>("");
   const menuOpen = Boolean(menuAnchorEl && menuChatId);
-  const menuChat = useMemo(() => chats.find((chat) => chat.id === menuChatId) ?? null, [chats, menuChatId]);
+  const menuChat = useMemo(
+    () => chats.find((chat) => chat.id === menuChatId) ?? null,
+    [chats, menuChatId],
+  );
 
   function closeMenu() {
     setMenuAnchorEl(null);
@@ -71,7 +74,12 @@ export default function AppSidebar({
 
   return (
     <Paper elevation={0} sx={sidebarStyle}>
-      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3.2, px: 0.6 }}>
+      <Stack
+        direction="row"
+        spacing={1.5}
+        alignItems="center"
+        sx={{ mb: 3.2, px: 0.6 }}
+      >
         <Avatar sx={{ bgcolor: "#1573e6", width: 48, height: 48 }}>
           <SmartToyRoundedIcon />
         </Avatar>
@@ -80,33 +88,60 @@ export default function AppSidebar({
         </Typography>
       </Stack>
 
-      <Button
-        variant="text"
-        startIcon={<AddRoundedIcon />}
-        onClick={() => {
-          onSelectView("chat");
-          onCreateChat();
-        }}
-        sx={{
-          py: 1.2,
-          px: 1.2,
-          borderRadius: 1.6,
-          textTransform: "none",
-          fontSize: 29 / 2.2,
-          mb: 3,
-          fontWeight: 600,
-          justifyContent: "flex-start",
-          color: "primary.main",
-          "&:hover": {
-            backgroundColor: "#eaf1fb",
-          },
-        }}
-      >
-        新建对话
-      </Button>
-
-      <Typography sx={{ fontWeight: 700, color: "#6b7b97", fontSize: 15, mb: 1.1 }}>对话记录</Typography>
       <List sx={{ py: 0 }}>
+        <ListItemButton
+          onClick={() => {
+            onSelectView("chat");
+            onCreateChat();
+          }}
+          sx={{
+            borderRadius: 1.6,
+            mb: 0.5,
+            py: 1.05,
+            color: "primary.main",
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 38 }}>
+            <AddRoundedIcon color="primary" />
+          </ListItemIcon>
+          <ListItemText
+            primary="新对话"
+            sx={{ fontWeight: 700, fontSize: 20 }}
+          />
+        </ListItemButton>
+
+        <ListItemButton
+          selected={view === "tasks"}
+          onClick={() => onSelectView("tasks")}
+          sx={{
+            borderRadius: 1.6,
+            mb: 0.5,
+            py: 1.05,
+            backgroundColor: view === "tasks" ? "#edf2fb" : "transparent",
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 38 }}>
+            <ChecklistRoundedIcon
+              color={view === "tasks" ? "primary" : "action"}
+            />
+          </ListItemIcon>
+          <ListItemText primary="任务列表" />
+        </ListItemButton>
+        <ListItemButton sx={{ borderRadius: 2, py: 1.05 }}>
+          <ListItemIcon sx={{ minWidth: 38 }}>
+            <ExtensionOutlinedIcon color="action" />
+          </ListItemIcon>
+          <ListItemText primary="技能" />
+        </ListItemButton>
+      </List>
+      <Divider sx={{ my: 2 }} />
+
+      <Typography
+        sx={{ fontWeight: 700, color: "#6b7b97", fontSize: 15, mb: 1.1 }}
+      >
+        对话记录
+      </Typography>
+      <List sx={{ py: 0, flex: 1 }}>
         {chats.map((chat) => (
           <Box
             key={chat.id}
@@ -115,7 +150,9 @@ export default function AppSidebar({
               setHoveredChatId(chat.id);
             }}
             onMouseLeave={() => {
-              setHoveredChatId((current) => (current === chat.id ? "" : current));
+              setHoveredChatId((current) =>
+                current === chat.id ? "" : current,
+              );
             }}
             sx={{
               position: "relative",
@@ -132,11 +169,20 @@ export default function AppSidebar({
                 borderRadius: 1.6,
                 py: 1.05,
                 pr: 5.5,
-                backgroundColor: view === "chat" && selectedChatId === chat.id ? "#edf2fb" : "transparent",
+                backgroundColor:
+                  view === "chat" && selectedChatId === chat.id
+                    ? "#edf2fb"
+                    : "transparent",
               }}
             >
               <ListItemIcon sx={{ minWidth: 38 }}>
-                <ChatBubbleOutlineRoundedIcon color={view === "chat" && selectedChatId === chat.id ? "primary" : "action"} />
+                <ChatBubbleOutlineRoundedIcon
+                  color={
+                    view === "chat" && selectedChatId === chat.id
+                      ? "primary"
+                      : "action"
+                  }
+                />
               </ListItemIcon>
               <ListItemText
                 sx={{ minWidth: 0, overflow: "hidden" }}
@@ -145,8 +191,12 @@ export default function AppSidebar({
                   noWrap: true,
                   title: chat.title,
                   fontSize: 30 / 2.3,
-                  fontWeight: view === "chat" && selectedChatId === chat.id ? 700 : 500,
-                  color: view === "chat" && selectedChatId === chat.id ? "#1573e6" : "inherit",
+                  fontWeight:
+                    view === "chat" && selectedChatId === chat.id ? 700 : 500,
+                  color:
+                    view === "chat" && selectedChatId === chat.id
+                      ? "#1573e6"
+                      : "inherit",
                 }}
               />
             </ListItemButton>
@@ -170,7 +220,8 @@ export default function AppSidebar({
                 top: "50%",
                 transform: "translateY(-50%)",
                 transition: "opacity 120ms ease",
-                opacity: hoveredChatId === chat.id || menuChatId === chat.id ? 1 : 0,
+                opacity:
+                  hoveredChatId === chat.id || menuChatId === chat.id ? 1 : 0,
               }}
             >
               <MoreHorizRoundedIcon fontSize="small" />
@@ -190,7 +241,12 @@ export default function AppSidebar({
         <ClickAwayListener onClickAway={closeMenu}>
           <Paper
             elevation={4}
-            sx={{ mt: 0.4, borderRadius: 0.8, overflow: "hidden", border: "1px solid #d7e1f1" }}
+            sx={{
+              mt: 0.4,
+              borderRadius: 0.8,
+              overflow: "hidden",
+              border: "1px solid #d7e1f1",
+            }}
           >
             <MenuList dense onClick={(event) => event.stopPropagation()}>
               <MenuItem
@@ -218,34 +274,6 @@ export default function AppSidebar({
         </ClickAwayListener>
       </Popper>
 
-      <Divider sx={{ my: 2 }} />
-
-      <Typography sx={{ fontWeight: 700, color: "#6b7b97", fontSize: 15, mb: 1.1 }}>工作空间</Typography>
-      <List sx={{ py: 0, flex: 1 }}>
-        <ListItemButton
-          selected={view === "tasks"}
-          onClick={() => onSelectView("tasks")}
-          sx={{
-            borderRadius: 1.6,
-            mb: 0.5,
-            py: 1.05,
-            borderRight: view === "tasks" ? "4px solid #1674e6" : "4px solid transparent",
-            backgroundColor: view === "tasks" ? "#edf2fb" : "transparent",
-          }}
-        >
-          <ListItemIcon sx={{ minWidth: 38 }}>
-            <ChecklistRoundedIcon color={view === "tasks" ? "primary" : "action"} />
-          </ListItemIcon>
-          <ListItemText primary="任务列表" />
-        </ListItemButton>
-        <ListItemButton sx={{ borderRadius: 2, py: 1.05 }}>
-          <ListItemIcon sx={{ minWidth: 38 }}>
-            <ExtensionOutlinedIcon color="disabled" />
-          </ListItemIcon>
-          <ListItemText primary="技能" />
-        </ListItemButton>
-      </List>
-
       <List sx={{ py: 0, mt: "auto" }}>
         <ListItemButton
           selected={view === "settings"}
@@ -253,12 +281,17 @@ export default function AppSidebar({
           sx={{
             borderRadius: 1.8,
             py: 1.2,
-            border: view === "settings" ? "1px solid #9dc4fb" : "1px solid transparent",
+            border:
+              view === "settings"
+                ? "1px solid #9dc4fb"
+                : "1px solid transparent",
             backgroundColor: view === "settings" ? "#edf4ff" : "transparent",
           }}
         >
           <ListItemIcon sx={{ minWidth: 38 }}>
-            <SettingsOutlinedIcon color={view === "settings" ? "primary" : "action"} />
+            <SettingsOutlinedIcon
+              color={view === "settings" ? "primary" : "action"}
+            />
           </ListItemIcon>
           <ListItemText
             primary="个人设置"

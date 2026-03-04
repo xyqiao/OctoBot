@@ -148,7 +148,10 @@ function ensureSchema(db) {
     );
   `);
 
-  const columns = db.prepare("PRAGMA table_info(settings)").all().map((col) => col.name);
+  const columns = db
+    .prepare("PRAGMA table_info(settings)")
+    .all()
+    .map((col) => col.name);
   const expectedSettingsColumns = [
     "id",
     "display_name",
@@ -190,6 +193,7 @@ function createStorage(userDataDir) {
   fs.mkdirSync(userDataDir, { recursive: true });
   const dbPath = path.join(userDataDir, "nexus-ai.sqlite");
   const db = new Database(dbPath);
+  let closed = false;
 
   ensureSchema(db);
 
@@ -198,13 +202,23 @@ function createStorage(userDataDir) {
     countTasks: db.prepare("SELECT COUNT(1) AS count FROM tasks"),
     getSettings: db.prepare("SELECT * FROM settings WHERE id = ?"),
     getChatById: db.prepare("SELECT * FROM chats WHERE id = ?"),
-    insertChat: db.prepare("INSERT INTO chats (id, title, updated_at) VALUES (@id, @title, @updatedAt)"),
-    insertMessage: db.prepare("INSERT INTO messages (id, chat_id, role, content, timestamp) VALUES (@id, @chatId, @role, @content, @timestamp)"),
-    countUserMessagesByChat: db.prepare("SELECT COUNT(1) AS count FROM messages WHERE chat_id = ? AND role = 'user'"),
+    insertChat: db.prepare(
+      "INSERT INTO chats (id, title, updated_at) VALUES (@id, @title, @updatedAt)",
+    ),
+    insertMessage: db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, timestamp) VALUES (@id, @chatId, @role, @content, @timestamp)",
+    ),
+    countUserMessagesByChat: db.prepare(
+      "SELECT COUNT(1) AS count FROM messages WHERE chat_id = ? AND role = 'user'",
+    ),
     listChats: db.prepare("SELECT * FROM chats ORDER BY updated_at DESC"),
-    listMessagesByChat: db.prepare("SELECT * FROM messages WHERE chat_id = ? ORDER BY timestamp ASC"),
+    listMessagesByChat: db.prepare(
+      "SELECT * FROM messages WHERE chat_id = ? ORDER BY timestamp ASC",
+    ),
     updateChatTime: db.prepare("UPDATE chats SET updated_at = ? WHERE id = ?"),
-    updateChatTitle: db.prepare("UPDATE chats SET title = ?, updated_at = ? WHERE id = ?"),
+    updateChatTitle: db.prepare(
+      "UPDATE chats SET title = ?, updated_at = ? WHERE id = ?",
+    ),
     deleteChat: db.prepare("DELETE FROM chats WHERE id = ?"),
     listTasks: db.prepare("SELECT * FROM tasks ORDER BY updated_at DESC"),
     upsertTask: db.prepare(
@@ -247,9 +261,21 @@ function createStorage(userDataDir) {
     const seed = db.transaction(() => {
       if (chatCount === 0) {
         const chats = [
-          { id: "chat_analytics", title: "Data Analysis Model", updatedAt: now() },
-          { id: "chat_refactor", title: "Code Refactoring", updatedAt: now() - 10 * 60_000 },
-          { id: "chat_research", title: "Market Research", updatedAt: now() - 30 * 60_000 },
+          {
+            id: "chat_analytics",
+            title: "Data Analysis Model",
+            updatedAt: now(),
+          },
+          {
+            id: "chat_refactor",
+            title: "Code Refactoring",
+            updatedAt: now() - 10 * 60_000,
+          },
+          {
+            id: "chat_research",
+            title: "Market Research",
+            updatedAt: now() - 30 * 60_000,
+          },
         ];
 
         for (const chat of chats) {
@@ -261,7 +287,8 @@ function createStorage(userDataDir) {
             id: makeId("msg"),
             chatId: "chat_analytics",
             role: "user",
-            content: "Can you help me analyze the Q3 sales data and generate a trend report?",
+            content:
+              "Can you help me analyze the Q3 sales data and generate a trend report?",
             timestamp: now() - 4 * 60_000,
           },
           {
@@ -276,7 +303,8 @@ function createStorage(userDataDir) {
             id: makeId("msg"),
             chatId: "chat_analytics",
             role: "user",
-            content: "I've attached the CSV file containing the regional breakdown.",
+            content:
+              "I've attached the CSV file containing the regional breakdown.",
             timestamp: now() - 2 * 60_000,
           },
           {
@@ -324,7 +352,9 @@ function createStorage(userDataDir) {
             status: "Completed",
             progress: 100,
             updatedAt: now() - 26 * 60 * 60_000,
-            logs: ["[INFO] - Completed summarization and exported digest to workspace."],
+            logs: [
+              "[INFO] - Completed summarization and exported digest to workspace.",
+            ],
           },
         ];
 
@@ -373,7 +403,11 @@ function createStorage(userDataDir) {
     }
 
     const updatedAt = now();
-    const result = queries.updateChatTitle.run(normalizedTitle, updatedAt, chatId);
+    const result = queries.updateChatTitle.run(
+      normalizedTitle,
+      updatedAt,
+      chatId,
+    );
     return result.changes > 0;
   }
 
@@ -388,7 +422,10 @@ function createStorage(userDataDir) {
 
   function appendMessage(message) {
     const txn = db.transaction(() => {
-      const chatRow = message.role === "user" ? queries.getChatById.get(message.chatId) : null;
+      const chatRow =
+        message.role === "user"
+          ? queries.getChatById.get(message.chatId)
+          : null;
       const shouldRetitle =
         message.role === "user" &&
         chatRow?.title === "新对话" &&
@@ -444,6 +481,16 @@ function createStorage(userDataDir) {
     return true;
   }
 
+  function close() {
+    if (closed) {
+      return false;
+    }
+
+    db.close();
+    closed = true;
+    return true;
+  }
+
   return {
     bootstrapData,
     listChats,
@@ -456,6 +503,7 @@ function createStorage(userDataDir) {
     upsertTask,
     getSettings,
     saveSettings,
+    close,
     getDbPath: () => dbPath,
   };
 }

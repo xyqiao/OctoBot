@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
-import { Avatar, Box, Button, CircularProgress, FormControlLabel, Paper, Stack, Switch, TextField, Typography } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  Button,
+  CircularProgress,
+  FormControlLabel,
+  Paper,
+  Stack,
+  Switch,
+  TextField,
+  Typography,
+} from "@mui/material";
 import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
@@ -41,7 +52,10 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error("Failed to save settings:", error);
-      await window.desktopApi?.notify("Nexus AI", "Failed to save configurations.");
+      await window.desktopApi?.notify(
+        "Nexus AI",
+        "Failed to save configurations.",
+      );
     }
   }
 
@@ -58,7 +72,10 @@ export default function SettingsPage() {
     );
   }
 
-  const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
+  const update = <K extends keyof UserSettings>(
+    key: K,
+    value: UserSettings[K],
+  ) => {
     setSettings((prev) => {
       if (!prev) return prev;
       return { ...prev, [key]: value };
@@ -74,23 +91,40 @@ export default function SettingsPage() {
           </Typography>
         </Box>
 
-        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}>
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 2.2 }}>
+        <Paper
+          elevation={0}
+          sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+            sx={{ mb: 2.2 }}
+          >
             <PersonOutlineRoundedIcon color="primary" />
-            <Typography variant="h5" sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}>
+            <Typography
+              variant="h5"
+              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
+            >
               账户信息
             </Typography>
           </Stack>
 
           <Stack direction="row" spacing={2.2}>
-            <Avatar sx={{ width: 90, height: 90, bgcolor: "#3f92f7", fontSize: 42 }}>{settings.displayName.slice(0, 2).toUpperCase()}</Avatar>
+            <Avatar
+              sx={{ width: 90, height: 90, bgcolor: "#3f92f7", fontSize: 42 }}
+            >
+              {settings.displayName.slice(0, 2).toUpperCase()}
+            </Avatar>
             <Stack spacing={1.8} sx={{ flex: 1 }}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={1.8}>
                 <TextField
                   label="Display Name"
                   value={settings.displayName}
                   fullWidth
-                  onChange={(event) => update("displayName", event.target.value)}
+                  onChange={(event) =>
+                    update("displayName", event.target.value)
+                  }
                 />
                 <TextField
                   label="Email Address"
@@ -109,10 +143,21 @@ export default function SettingsPage() {
           </Stack>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}>
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 1.8 }}>
+        <Paper
+          elevation={0}
+          sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+            sx={{ mb: 1.8 }}
+          >
             <KeyRoundedIcon color="primary" />
-            <Typography variant="h5" sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}>
+            <Typography
+              variant="h5"
+              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
+            >
               模型配置
             </Typography>
           </Stack>
@@ -146,25 +191,57 @@ export default function SettingsPage() {
           </Stack>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}>
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 1.8 }}>
+        <Paper
+          elevation={0}
+          sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+            sx={{ mb: 1.8 }}
+          >
             <ShieldOutlinedIcon color="primary" />
-            <Typography variant="h5" sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}>
+            <Typography
+              variant="h5"
+              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
+            >
               系统偏好设置
             </Typography>
           </Stack>
 
           <Stack>
             <FormControlLabel
-              control={<Switch checked={settings.desktopNotifications} onChange={(_event, checked) => update("desktopNotifications", checked)} />}
+              control={
+                <Switch
+                  checked={settings.desktopNotifications}
+                  onChange={(_event, checked) =>
+                    update("desktopNotifications", checked)
+                  }
+                />
+              }
               label="允许桌面通知"
             />
             <FormControlLabel
-              control={<Switch checked={settings.developerLogging} onChange={(_event, checked) => update("developerLogging", checked)} />}
+              control={
+                <Switch
+                  checked={settings.developerLogging}
+                  onChange={(_event, checked) =>
+                    update("developerLogging", checked)
+                  }
+                />
+              }
               label="开发者日志模式"
             />
             <FormControlLabel
-              control={<Switch checked={settings.dataTelemetry} onChange={(_event, checked) => update("dataTelemetry", checked)} />}
+              control={
+                <Switch
+                  checked={settings.dataTelemetry}
+                  onChange={(_event, checked) =>
+                    update("dataTelemetry", checked)
+                  }
+                />
+              }
               label="数据遥测 (帮助提高模型准确性)"
             />
           </Stack>
@@ -174,14 +251,26 @@ export default function SettingsPage() {
           <Button
             variant="outlined"
             onClick={() => void restoreSettings()}
-            sx={{ textTransform: "none", px: 3.4, py: 1.3, borderRadius: 1.5, fontWeight: 700 }}
+            sx={{
+              textTransform: "none",
+              px: 3.4,
+              py: 1.3,
+              borderRadius: 1.5,
+              fontWeight: 700,
+            }}
           >
             还原
           </Button>
           <Button
             variant="contained"
             onClick={() => void persistSettings()}
-            sx={{ textTransform: "none", px: 3.4, py: 1.3, borderRadius: 1.5, fontWeight: 700 }}
+            sx={{
+              textTransform: "none",
+              px: 3.4,
+              py: 1.3,
+              borderRadius: 1.5,
+              fontWeight: 700,
+            }}
           >
             保存
           </Button>
