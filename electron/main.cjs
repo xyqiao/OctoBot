@@ -16,6 +16,20 @@ let taskDispatcher = null;
 const activeChatStreams = new Map();
 let shutdownHandled = false;
 
+function isSafeExternalUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "http:" ||
+      parsed.protocol === "https:" ||
+      parsed.protocol === "mailto:" ||
+      parsed.protocol === "tel:"
+    );
+  } catch {
+    return false;
+  }
+}
+
 function watchDistAndReload(win) {
   const distDir = path.join(__dirname, "../dist");
   let reloadTimer = null;
@@ -95,6 +109,31 @@ function createWindow() {
     },
   });
 
+  const appInternalUrl = isDev
+    ? process.env.VITE_DEV_SERVER_URL ?? ""
+    : pathToFileURL(path.join(__dirname, "../dist/index.html")).href;
+
+  const isInternalUrl = (targetUrl) => {
+    if (!targetUrl) {
+      return false;
+    }
+
+    if (targetUrl === "about:blank" || targetUrl.startsWith("devtools://")) {
+      return true;
+    }
+
+    if (isDev) {
+      try {
+        const appOrigin = new URL(appInternalUrl).origin;
+        return new URL(targetUrl).origin === appOrigin;
+      } catch {
+        return false;
+      }
+    }
+
+    return targetUrl.startsWith(appInternalUrl);
+  };
+
   if (isDev) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
@@ -105,8 +144,21 @@ function createWindow() {
     }
   }
 
+  win.webContents.on("will-navigate", (event, url) => {
+    if (isInternalUrl(url)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (isSafeExternalUrl(url)) {
+      void shell.openExternal(url);
+    }
+  });
+
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isSafeExternalUrl(url)) {
+      void shell.openExternal(url);
+    }
     return { action: "deny" };
   });
 }
