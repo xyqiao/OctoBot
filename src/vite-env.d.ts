@@ -24,6 +24,88 @@ interface DesktopAgentTask {
   subtitle?: string;
 }
 
+type DesktopTaskLifecycleStatus = "draft" | "active" | "paused" | "terminated";
+type DesktopTaskScheduleType = "manual" | "once" | "cron";
+type DesktopTaskRunStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "canceled"
+  | "timeout";
+type DesktopTaskTriggerType = "manual" | "schedule" | "retry";
+
+interface DesktopTaskSchedule {
+  type: DesktopTaskScheduleType;
+  runAt?: number;
+  cronExpr?: string;
+  timezone: string;
+  nextRunAt?: number;
+  lastRunAt?: number;
+}
+
+interface DesktopTaskDefinition {
+  id: string;
+  title: string;
+  description: string;
+  taskType: "file_ops" | "office_doc" | "social_publish" | "custom";
+  payload: Record<string, unknown>;
+  lifecycleStatus: DesktopTaskLifecycleStatus;
+  schedule: DesktopTaskSchedule;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface DesktopTaskRun {
+  id: string;
+  taskId: string;
+  triggerType: DesktopTaskTriggerType;
+  status: DesktopTaskRunStatus;
+  queuedAt: number;
+  startedAt?: number;
+  endedAt?: number;
+  progress: number;
+  workerId?: string;
+  cancelRequested: boolean;
+  result: Record<string, unknown>;
+  errorCode?: string;
+  errorMessage?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface DesktopTaskRunLog {
+  id: number;
+  runId: string;
+  ts: number;
+  level: "debug" | "info" | "warn" | "error";
+  phase: string;
+  message: string;
+  meta: Record<string, unknown>;
+}
+
+interface DesktopTaskRunCancelResult {
+  accepted: boolean;
+  run: DesktopTaskRun | null;
+  requiresSignal: boolean;
+  reason: string;
+}
+
+interface DesktopTaskCreatePayload {
+  id?: string;
+  title: string;
+  description?: string;
+  taskType?: "file_ops" | "office_doc" | "social_publish" | "custom";
+  payload?: Record<string, unknown>;
+  lifecycleStatus?: DesktopTaskLifecycleStatus;
+  schedule?: {
+    type?: DesktopTaskScheduleType;
+    runAt?: number;
+    cronExpr?: string;
+    timezone?: string;
+  };
+}
+
 interface DesktopUserSettings {
   id: "user-settings";
   displayName: string;
@@ -87,6 +169,22 @@ declare global {
       ) => Promise<string>;
       cancelAgentChatStream: (streamId: string) => Promise<boolean>;
       runTaskWorkflow: (payload: AgentRuntimePayload) => Promise<AgentRuntimeResult>;
+      createTaskDefinition: (
+        payload: DesktopTaskCreatePayload,
+      ) => Promise<DesktopTaskDefinition | null>;
+      listTaskDefinitions: () => Promise<DesktopTaskDefinition[]>;
+      updateTaskStatus: (
+        taskId: string,
+        lifecycleStatus: DesktopTaskLifecycleStatus,
+        options?: { cancelActiveRuns?: boolean },
+      ) => Promise<DesktopTaskDefinition | null>;
+      runTaskNow: (
+        taskId: string,
+        options?: { triggerType?: DesktopTaskTriggerType; priority?: number },
+      ) => Promise<DesktopTaskRun | null>;
+      listTaskRuns: (taskId: string, limit?: number) => Promise<DesktopTaskRun[]>;
+      cancelTaskRun: (runId: string, reason?: string) => Promise<DesktopTaskRunCancelResult>;
+      listTaskRunLogs: (runId: string, limit?: number) => Promise<DesktopTaskRunLog[]>;
       bootstrapData: () => Promise<boolean>;
       listChats: () => Promise<DesktopChatSession[]>;
       createChat: () => Promise<DesktopChatSession>;

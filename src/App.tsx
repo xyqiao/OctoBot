@@ -14,7 +14,13 @@ import {
   Typography,
 } from "@mui/material";
 import type { ChatSession, NavView } from "./types";
-import { bootstrapData, createChat, deleteChat, listChats, renameChat } from "./utils/db";
+import {
+  bootstrapData,
+  createChat,
+  deleteChat,
+  listChats,
+  renameChat,
+} from "./utils/db";
 import ChatPage from "./pages/ChatPage";
 import TasksPage from "./pages/TasksPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -59,7 +65,8 @@ export default function App() {
 
     setSelectedChatId((currentSelectedChatId) => {
       const preferredId =
-        preferredSelectedChatId && nextChats.some((chat) => chat.id === preferredSelectedChatId)
+        preferredSelectedChatId &&
+        nextChats.some((chat) => chat.id === preferredSelectedChatId)
           ? preferredSelectedChatId
           : currentSelectedChatId;
 
@@ -133,7 +140,8 @@ export default function App() {
 
     setChatActionPending(true);
     try {
-      const keepSelected = selectedChatId !== deleteTarget.id ? selectedChatId : undefined;
+      const keepSelected =
+        selectedChatId !== deleteTarget.id ? selectedChatId : undefined;
       await deleteChat(deleteTarget.id);
       await reloadChats(keepSelected);
       setDeleteTarget(null);
@@ -168,7 +176,13 @@ export default function App() {
     <Box sx={baseShellStyle}>
       <Paper
         elevation={0}
-        sx={{ width: "100%", height: "100%", p: 0, borderRadius: 2.5, overflow: "hidden", border: "1px solid #dbe3f0" }}
+        sx={{
+          width: "100%",
+          height: "100%",
+          p: 0,
+          borderRadius: 0,
+          overflow: "hidden",
+        }}
       >
         <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
           <AppSidebar
@@ -199,7 +213,12 @@ export default function App() {
         </Stack>
       </Paper>
 
-      <Dialog open={Boolean(renameTarget)} onClose={handleRenameClose} fullWidth maxWidth="xs">
+      <Dialog
+        open={Boolean(renameTarget)}
+        onClose={handleRenameClose}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>重命名对话</DialogTitle>
         <DialogContent>
           <TextField
@@ -221,13 +240,22 @@ export default function App() {
           <Button onClick={handleRenameClose} disabled={chatActionPending}>
             取消
           </Button>
-          <Button onClick={() => void handleRenameSubmit()} disabled={chatActionPending || !renameDraft.trim()} variant="contained">
+          <Button
+            onClick={() => void handleRenameSubmit()}
+            disabled={chatActionPending || !renameDraft.trim()}
+            variant="contained"
+          >
             保存
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(deleteTarget)} onClose={handleDeleteClose} fullWidth maxWidth="xs">
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onClose={handleDeleteClose}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>确认删除对话？</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -238,7 +266,12 @@ export default function App() {
           <Button onClick={handleDeleteClose} disabled={chatActionPending}>
             取消
           </Button>
-          <Button onClick={() => void handleDeleteConfirm()} color="error" disabled={chatActionPending} variant="contained">
+          <Button
+            onClick={() => void handleDeleteConfirm()}
+            color="error"
+            disabled={chatActionPending}
+            variant="contained"
+          >
             确认删除
           </Button>
         </DialogActions>

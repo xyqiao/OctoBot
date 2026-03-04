@@ -11,6 +11,8 @@ const { pathToFileURL } = require("url");
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let storage = null;
+let taskScheduler = null;
+let taskDispatcher = null;
 const activeChatStreams = new Map();
 let shutdownHandled = false;
 
@@ -50,6 +52,22 @@ function shutdownResources() {
     controller.abort();
   }
   activeChatStreams.clear();
+
+  if (taskScheduler?.stop) {
+    try {
+      taskScheduler.stop();
+    } catch (error) {
+      console.error("[main] Failed to stop task scheduler:", error);
+    }
+  }
+
+  if (taskDispatcher?.stop) {
+    try {
+      taskDispatcher.stop();
+    } catch (error) {
+      console.error("[main] Failed to stop task dispatcher:", error);
+    }
+  }
 
   if (storage?.close) {
     try {
@@ -98,7 +116,27 @@ app
   .then(() => {
     try {
       const { createStorage } = require("./sqliteStorage.cjs");
+      const { TaskScheduler } = require("./taskEngine/TaskScheduler.cjs");
+      const { TaskDispatcher } = require("./taskEngine/TaskDispatcher.cjs");
+      const { WorkerManager } = require("./taskEngine/WorkerManager.cjs");
       storage = createStorage(app.getPath("userData"));
+
+      const workerManager = new WorkerManager({
+        storage,
+        workerScriptPath: path.join(__dirname, "taskEngine", "taskWorker.cjs"),
+      });
+
+      taskScheduler = new TaskScheduler({
+        storage,
+      });
+
+      taskDispatcher = new TaskDispatcher({
+        storage,
+        workerManager,
+      });
+
+      taskScheduler.start();
+      taskDispatcher.start();
     } catch (error) {
       console.error("[main] Failed to initialize better-sqlite3.");
       console.error("[main] Run: pnpm run rebuild:native");
@@ -177,6 +215,63 @@ app
       const runtime = await getRuntime();
       return runtime.runTaskWorkflow(payload);
     });
+
+    ipcMain.handle("task:create", (_event, payload) =>
+      storage.createTaskDefinition(payload),
+    );
+    ipcMain.handle("task:list", () => storage.listTaskDefinitions());
+    ipcMain.handle("task:updateStatus", (_event, taskId, lifecycleStatus, options) => {
+      const result = storage.updateTaskLifecycleStatus(
+        taskId,
+        lifecycleStatus,
+        options,
+      );
+
+      if (result?.signaledRunIds?.length > 0) {
+        for (const runId of result.signaledRunIds) {
+          const canceled = taskDispatcher?.cancelRun(
+            runId,
+            `Task moved to "${lifecycleStatus}".`,
+          );
+          if (!canceled) {
+            storage.appendTaskRunLog(
+              runId,
+              "warn",
+              "cancel",
+              "Cancellation requested but no active worker accepted the signal. It will be retried on dispatch.",
+              {},
+            );
+          }
+        }
+      }
+
+      return result?.task ?? null;
+    });
+    ipcMain.handle("task:runNow", (_event, taskId, options) =>
+      storage.runTaskNow(taskId, options),
+    );
+    ipcMain.handle("task:runs:list", (_event, taskId, limit) =>
+      storage.listTaskRuns(taskId, limit),
+    );
+    ipcMain.handle("task:run:cancel", (_event, runId, reason) => {
+      const result = storage.requestCancelTaskRun(runId, reason);
+      if (result?.accepted && result?.requiresSignal) {
+        const canceled = taskDispatcher?.cancelRun(runId, reason);
+        if (!canceled) {
+          storage.appendTaskRunLog(
+            runId,
+            "warn",
+            "cancel",
+            "Cancellation requested but no active worker accepted the signal. It will be retried on dispatch.",
+            {},
+          );
+        }
+      }
+      return result;
+    });
+    ipcMain.handle("task:run:logs", (_event, runId, limit) =>
+      storage.listTaskRunLogs(runId, limit),
+    );
 
     ipcMain.handle("db:bootstrap", () => storage.bootstrapData());
     ipcMain.handle("db:listChats", () => storage.listChats());

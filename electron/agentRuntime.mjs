@@ -1,5 +1,6 @@
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 
 const AgentState = Annotation.Root({
   prompt: Annotation,
@@ -28,6 +29,13 @@ function toText(content) {
   return String(content ?? "");
 }
 
+function buildChatMessages(systemPrompt, userPrompt) {
+  return [
+    new SystemMessage(systemPrompt),
+    new HumanMessage(userPrompt),
+  ];
+}
+
 async function runModel(model, systemPrompt, userPrompt) {
   if (!model) {
     return [
@@ -38,10 +46,7 @@ async function runModel(model, systemPrompt, userPrompt) {
     ].join("\n");
   }
 
-  const response = await model.invoke([
-    { role: "system", content: systemPrompt },
-    { role: "user", content: userPrompt },
-  ]);
+  const response = await model.invoke(buildChatMessages(systemPrompt, userPrompt));
 
   return toText(response.content);
 }
@@ -59,10 +64,7 @@ async function runModelStream(model, systemPrompt, userPrompt, { signal, onChunk
   }
 
   const stream = await model.stream(
-    [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
+    buildChatMessages(systemPrompt, userPrompt),
     { signal },
   );
 

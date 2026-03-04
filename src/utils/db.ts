@@ -1,4 +1,16 @@
-import type { AgentTask, ChatMessage, ChatSession, UserSettings } from "../types";
+import type {
+  AgentTask,
+  ChatMessage,
+  ChatSession,
+  TaskCreatePayload,
+  TaskDefinition,
+  TaskRun,
+  TaskRunCancelResult,
+  TaskRunLog,
+  TaskLifecycleStatus,
+  TaskTriggerType,
+  UserSettings,
+} from "../types";
 
 function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
@@ -45,6 +57,48 @@ export async function listTasks() {
 
 export async function upsertTask(task: AgentTask) {
   return ensureDesktopApi().upsertTask(task);
+}
+
+export async function createTaskDefinition(payload: TaskCreatePayload) {
+  return ensureDesktopApi().createTaskDefinition(payload) as Promise<TaskDefinition | null>;
+}
+
+export async function listTaskDefinitions() {
+  return ensureDesktopApi().listTaskDefinitions() as Promise<TaskDefinition[]>;
+}
+
+export async function updateTaskStatus(
+  taskId: string,
+  lifecycleStatus: TaskLifecycleStatus,
+  options?: { cancelActiveRuns?: boolean },
+) {
+  return ensureDesktopApi().updateTaskStatus(
+    taskId,
+    lifecycleStatus,
+    options,
+  ) as Promise<TaskDefinition | null>;
+}
+
+export async function runTaskNow(
+  taskId: string,
+  options?: { triggerType?: TaskTriggerType; priority?: number },
+) {
+  return ensureDesktopApi().runTaskNow(taskId, options) as Promise<TaskRun | null>;
+}
+
+export async function listTaskRuns(taskId: string, limit?: number) {
+  return ensureDesktopApi().listTaskRuns(taskId, limit) as Promise<TaskRun[]>;
+}
+
+export async function cancelTaskRun(runId: string, reason?: string) {
+  return ensureDesktopApi().cancelTaskRun(
+    runId,
+    reason,
+  ) as Promise<TaskRunCancelResult>;
+}
+
+export async function listTaskRunLogs(runId: string, limit?: number) {
+  return ensureDesktopApi().listTaskRunLogs(runId, limit) as Promise<TaskRunLog[]>;
 }
 
 export async function getSettings() {
