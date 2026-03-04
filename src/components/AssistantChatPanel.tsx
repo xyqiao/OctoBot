@@ -7,12 +7,16 @@ import {
 } from "react";
 import {
   AssistantRuntimeProvider,
+  ChainOfThoughtPrimitive,
   MessagePrimitive,
+  useAui,
+  useAuiState,
   useLocalRuntime,
   type ChatModelAdapter,
   type CompleteAttachment,
   type EmptyMessagePartProps,
   type PendingAttachment,
+  type ThreadAssistantMessagePart,
   type ThreadMessage,
   type ThreadMessageLike,
   CompositeAttachmentAdapter,
@@ -21,6 +25,8 @@ import {
 } from "@assistant-ui/react";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import {
+  AssistantActionBar,
+  AssistantMessage,
   AttachmentUI,
   BranchPicker,
   MessagePart,
@@ -102,6 +108,82 @@ const textLikeFileExtensions = [
   ".sql",
   ".log",
 ];
+const thinkTagPattern = /<\s*(\/?)\s*think\s*>/gi;
+
+type ParsedAssistantResponse = {
+  reasoning: string;
+  answer: string;
+};
+
+function parseAssistantResponse(raw: string): ParsedAssistantResponse {
+  if (!raw) {
+    return { reasoning: "", answer: "" };
+  }
+
+  const reasoningChunks: string[] = [];
+  const answerChunks: string[] = [];
+  let cursor = 0;
+  let inThink = false;
+  thinkTagPattern.lastIndex = 0;
+
+  for (const match of raw.matchAll(thinkTagPattern)) {
+    const tag = match[0];
+    const tagStart = match.index ?? cursor;
+    const chunk = raw.slice(cursor, tagStart);
+
+    if (chunk) {
+      if (inThink) {
+        reasoningChunks.push(chunk);
+      } else {
+        answerChunks.push(chunk);
+      }
+    }
+
+    const isClosingTag = match[1] === "/";
+    if (isClosingTag) {
+      if (inThink) {
+        inThink = false;
+      } else {
+        answerChunks.push(tag);
+      }
+    } else if (inThink) {
+      reasoningChunks.push(tag);
+    } else {
+      inThink = true;
+    }
+
+    cursor = tagStart + tag.length;
+  }
+
+  const tail = raw.slice(cursor);
+  if (tail) {
+    if (inThink) {
+      reasoningChunks.push(tail);
+    } else {
+      answerChunks.push(tail);
+    }
+  }
+
+  return {
+    reasoning: reasoningChunks.join(""),
+    answer: answerChunks.join(""),
+  };
+}
+
+function toAssistantContentParts(raw: string): ThreadAssistantMessagePart[] {
+  const parsed = parseAssistantResponse(raw);
+  const parts: ThreadAssistantMessagePart[] = [];
+
+  if (parsed.reasoning.trim().length > 0) {
+    parts.push({ type: "reasoning", text: parsed.reasoning });
+  }
+
+  if (parsed.answer.length > 0 || parts.length === 0) {
+    parts.push({ type: "text", text: parsed.answer });
+  }
+
+  return parts;
+}
 
 ReactSyntaxHighlighter.registerLanguage("javascript", langJavascript);
 ReactSyntaxHighlighter.registerLanguage("jsx", langJsx);
@@ -302,12 +384,19 @@ function buildPromptWithContext(messages: readonly ThreadMessage[]) {
 }
 
 function toInitialMessages(messages: ChatMessage[]): ThreadMessageLike[] {
-  return messages.map((message) => ({
-    id: message.id,
-    role: message.role,
-    createdAt: new Date(message.timestamp),
-    content: [{ type: "text", text: message.content }],
-  }));
+  return messages.map((message) => {
+    const content: ThreadMessageLike["content"] =
+      message.role === "assistant"
+        ? toAssistantContentParts(message.content)
+        : [{ type: "text" as const, text: message.content }];
+
+    return {
+      id: message.id,
+      role: message.role,
+      createdAt: new Date(message.timestamp),
+      content,
+    };
+  });
 }
 
 function detectAttachmentType(file: File) {
@@ -438,6 +527,76 @@ const ThinkingText: FC<EmptyMessagePartProps> = ({ status }) => {
   );
 };
 
+const ReasoningChainOfThought: FC = () => {
+  const aui = useAui();
+  const collapsed = useAuiState((state) => state.chainOfThought.collapsed);
+  const hasAnswerText = useAuiState((state) =>
+    state.message.parts.some(
+      (part) => part.type === "text" && part.text.trim().length > 0,
+    ),
+  );
+  const hasReasoning = useAuiState((state) =>
+    state.chainOfThought.parts.some(
+      (part) => part.type === "reasoning" && part.text.trim().length > 0,
+    ),
+  );
+  const autoCollapsedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasAnswerText) {
+      autoCollapsedRef.current = false;
+      if (collapsed) {
+        aui.chainOfThought().setCollapsed(false);
+      }
+      return;
+    }
+
+    if (!autoCollapsedRef.current && !collapsed) {
+      aui.chainOfThought().setCollapsed(true);
+      autoCollapsedRef.current = true;
+    }
+  }, [aui, collapsed, hasAnswerText]);
+
+  if (!hasReasoning) {
+    return null;
+  }
+
+  return (
+    <ChainOfThoughtPrimitive.Root
+      className="nexus-cot-root"
+      data-collapsed={collapsed ? "true" : "false"}
+    >
+      <ChainOfThoughtPrimitive.AccordionTrigger className="nexus-cot-trigger">
+        {collapsed ? "思考过程（展开）" : "思考过程（收起）"}
+      </ChainOfThoughtPrimitive.AccordionTrigger>
+      <div className="nexus-cot-content">
+        <ChainOfThoughtPrimitive.Parts
+          components={{
+            Reasoning: MarkdownText,
+          }}
+        />
+      </div>
+    </ChainOfThoughtPrimitive.Root>
+  );
+};
+
+const AssistantMessageWithReasoning: FC = () => {
+  return (
+    <AssistantMessage.Root>
+      <AssistantMessage.Avatar />
+      <AssistantMessage.Content
+        components={{
+          Text: MarkdownText,
+          Empty: ThinkingText,
+          ChainOfThought: ReasoningChainOfThought,
+        }}
+      />
+      <BranchPicker />
+      <AssistantActionBar />
+    </AssistantMessage.Root>
+  );
+};
+
 const UserMessageWithAvatar: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-user-message-root nexus-user-message-root">
@@ -476,7 +635,6 @@ export function AssistantChatPanel({
   settings,
   onMessagePersisted,
 }: AssistantChatPanelProps) {
-  console.log(messages);
   const initialMessages = useMemo(
     () => toInitialMessages(messages),
     [messages],
@@ -543,12 +701,15 @@ export function AssistantChatPanel({
             if (event.type === "chunk") {
               fullAnswer += event.chunk;
               yield {
-                content: [{ type: "text", text: fullAnswer }],
+                content: toAssistantContentParts(fullAnswer),
               };
             }
 
             if (event.type === "done") {
-              fullAnswer = event.answer?.trim() || fullAnswer.trim();
+              fullAnswer = event.answer || fullAnswer;
+              yield {
+                content: toAssistantContentParts(fullAnswer),
+              };
             }
 
             if (event.type === "error") {
@@ -569,11 +730,20 @@ export function AssistantChatPanel({
           return;
         }
 
+        const persistedAssistantAnswer = (() => {
+          const parsed = parseAssistantResponse(fullAnswer);
+          const normalizedAnswer = parsed.answer.trim();
+          if (normalizedAnswer.length > 0) {
+            return normalizedAnswer;
+          }
+          return fullAnswer.trim();
+        })();
+
         const assistantRecord: ChatMessage = {
           id: options.unstable_assistantMessageId ?? makeId("msg_assistant"),
           chatId,
           role: "assistant",
-          content: fullAnswer,
+          content: persistedAssistantAnswer,
           timestamp: Date.now(),
         };
 
@@ -598,13 +768,8 @@ export function AssistantChatPanel({
       <Thread
         assistantAvatar={{ fallback: "AI" }}
         composer={{ allowAttachments: true }}
-        assistantMessage={{
-          components: {
-            Text: MarkdownText,
-            Empty: ThinkingText,
-          },
-        }}
         components={{
+          AssistantMessage: AssistantMessageWithReasoning,
           UserMessage: UserMessageWithAvatar,
         }}
         strings={{

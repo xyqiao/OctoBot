@@ -111,6 +111,42 @@ body {
   border-top-right-radius: 0;
 }
 
+.nexus-chat-shell .nexus-cot-root {
+  margin-bottom: 8px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.nexus-chat-shell .nexus-cot-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-bottom: 1px solid #e4edf9;
+  background: #f4f8ff;
+  color: #3d557e;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.nexus-chat-shell .nexus-cot-root[data-collapsed="true"] .nexus-cot-trigger {
+  border-bottom: 0;
+}
+
+.nexus-chat-shell .nexus-cot-content {
+  padding: 10px 12px;
+}
+
+.nexus-chat-shell .nexus-cot-root[data-collapsed="true"] .nexus-cot-content {
+  display: none;
+}
+
 .nexus-chat-shell .aui-composer-root {
   border: 2px solid #3489f4;
   border-radius: 12px;
