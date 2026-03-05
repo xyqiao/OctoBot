@@ -1,6 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const os = require("os");
+const { spawn } = require("child_process");
 const mammoth = require("mammoth");
 const xlsx = require("xlsx");
 const { Document, HeadingLevel, Packer, Paragraph } = require("docx");
@@ -62,6 +63,58 @@ function normalizeObject(value) {
     return value;
   }
   return {};
+}
+
+function normalizeHttpUrl(rawUrl, label = "url") {
+  const source = toSafeString(rawUrl, "").trim();
+  if (!source) {
+    throw new Error(`${label} is required.`);
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(source);
+  } catch {
+    throw new Error(`Invalid ${label}: ${source}`);
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Only http/https are supported for ${label}.`);
+  }
+
+  return parsed.toString();
+}
+
+function openUrlInSystemBrowser(url) {
+  const normalizedUrl = normalizeHttpUrl(url, "browser url");
+
+  let command = "";
+  let args = [];
+
+  if (process.platform === "darwin") {
+    command = "open";
+    args = [normalizedUrl];
+  } else if (process.platform === "win32") {
+    command = "cmd";
+    args = ["/c", "start", "", normalizedUrl];
+  } else {
+    command = "xdg-open";
+    args = [normalizedUrl];
+  }
+
+  try {
+    const child = spawn(command, args, {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+  } catch (error) {
+    throw new Error(
+      `Failed to open system browser: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  return normalizedUrl;
 }
 
 function clipText(text, maxChars = DEFAULT_TEXT_LIMIT) {
@@ -601,6 +654,29 @@ async function officeWriteDocument(args, context) {
 
 async function browserPlaywrightRun(args, context) {
   assertNotAborted(context);
+
+  const steps = Array.isArray(args.steps) ? args.steps : [];
+  const initialUrl = toSafeString(args.url, "").trim();
+  const openMode = toSafeString(args.mode, "").trim().toLowerCase();
+  const forcePlaywright = toBoolean(args.forcePlaywright, false);
+  const useSystemBrowser =
+    toBoolean(args.openInSystemBrowser, false) ||
+    openMode === "system" ||
+    (Boolean(initialUrl) && steps.length === 0 && !forcePlaywright);
+
+  if (useSystemBrowser) {
+    const openedUrl = openUrlInSystemBrowser(initialUrl);
+    emitToolLog(context, "Opened URL in system default browser.", {
+      url: openedUrl,
+    });
+    return {
+      mode: "system",
+      openedUrl,
+      stepCount: 0,
+      autoClosed: false,
+    };
+  }
+
   const playwright = await import("playwright");
   const chromium = playwright?.chromium ?? playwright?.default?.chromium;
   if (!chromium) {
@@ -656,136 +732,135 @@ async function browserPlaywrightRun(args, context) {
 
   const extracted = {};
   const screenshots = [];
-  const steps = Array.isArray(args.steps) ? args.steps : [];
 
-  try {
-    const initialUrl = toSafeString(args.url, "").trim();
-    if (initialUrl) {
-      emitToolLog(context, "Playwright goto initial URL.", { url: initialUrl });
-      await page.goto(initialUrl, {
+  if (initialUrl) {
+    emitToolLog(context, "Playwright goto initial URL.", { url: initialUrl });
+    await page.goto(initialUrl, {
+      waitUntil: "domcontentloaded",
+    });
+  }
+
+  for (let index = 0; index < steps.length; index += 1) {
+    assertNotAborted(context);
+    const rawStep = steps[index];
+    const step = rawStep && typeof rawStep === "object" ? rawStep : {};
+    const action = toSafeString(step.action, "").trim().toLowerCase();
+    if (!action) {
+      continue;
+    }
+    emitToolLog(context, `Playwright step ${index + 1}/${steps.length}: ${action}`, {
+      index,
+      action,
+    });
+
+    if (action === "goto") {
+      await page.goto(toSafeString(step.url, ""), {
         waitUntil: "domcontentloaded",
       });
+      continue;
     }
 
-    for (let index = 0; index < steps.length; index += 1) {
-      assertNotAborted(context);
-      const rawStep = steps[index];
-      const step = rawStep && typeof rawStep === "object" ? rawStep : {};
-      const action = toSafeString(step.action, "").trim().toLowerCase();
-      if (!action) {
-        continue;
+    if (action === "click") {
+      await page.click(toSafeString(step.selector, ""));
+      continue;
+    }
+
+    if (action === "fill") {
+      await fillSelectorSmart(
+        page,
+        toSafeString(step.selector, ""),
+        toSafeString(step.text, ""),
+      );
+      continue;
+    }
+
+    if (action === "set_input_files") {
+      const selector = toSafeString(step.selector, "input[type='file']");
+      const files = toArray(step.files)
+        .map((item) => resolveUserPath(item, context, "playwright file upload"));
+      if (files.length === 0) {
+        const singleFile = toSafeString(step.file, "").trim();
+        if (singleFile) {
+          files.push(resolveUserPath(singleFile, context, "playwright file upload"));
+        }
       }
-      emitToolLog(context, `Playwright step ${index + 1}/${steps.length}: ${action}`, {
-        index,
-        action,
+      if (files.length === 0) {
+        throw new Error("set_input_files requires files or file.");
+      }
+      await page.setInputFiles(selector, files);
+      continue;
+    }
+
+    if (action === "press") {
+      const selector = toSafeString(step.selector, "").trim();
+      const key = toSafeString(step.key, "Enter");
+      if (selector) {
+        await page.press(selector, key);
+      } else {
+        await page.keyboard.press(key);
+      }
+      continue;
+    }
+
+    if (action === "wait_for_selector") {
+      await page.waitForSelector(toSafeString(step.selector, ""), {
+        timeout: toFiniteInt(step.timeoutMs, timeoutMs, {
+          min: 500,
+          max: MAX_TIMEOUT_MS,
+        }),
       });
-
-      if (action === "goto") {
-        await page.goto(toSafeString(step.url, ""), {
-          waitUntil: "domcontentloaded",
-        });
-        continue;
-      }
-
-      if (action === "click") {
-        await page.click(toSafeString(step.selector, ""));
-        continue;
-      }
-
-      if (action === "fill") {
-        await fillSelectorSmart(
-          page,
-          toSafeString(step.selector, ""),
-          toSafeString(step.text, ""),
-        );
-        continue;
-      }
-
-      if (action === "set_input_files") {
-        const selector = toSafeString(step.selector, "input[type='file']");
-        const files = toArray(step.files)
-          .map((item) => resolveUserPath(item, context, "playwright file upload"));
-        if (files.length === 0) {
-          const singleFile = toSafeString(step.file, "").trim();
-          if (singleFile) {
-            files.push(resolveUserPath(singleFile, context, "playwright file upload"));
-          }
-        }
-        if (files.length === 0) {
-          throw new Error("set_input_files requires files or file.");
-        }
-        await page.setInputFiles(selector, files);
-        continue;
-      }
-
-      if (action === "press") {
-        const selector = toSafeString(step.selector, "").trim();
-        const key = toSafeString(step.key, "Enter");
-        if (selector) {
-          await page.press(selector, key);
-        } else {
-          await page.keyboard.press(key);
-        }
-        continue;
-      }
-
-      if (action === "wait_for_selector") {
-        await page.waitForSelector(toSafeString(step.selector, ""), {
-          timeout: toFiniteInt(step.timeoutMs, timeoutMs, {
-            min: 500,
-            max: MAX_TIMEOUT_MS,
-          }),
-        });
-        continue;
-      }
-
-      if (action === "wait_for_timeout") {
-        await page.waitForTimeout(
-          toFiniteInt(step.timeoutMs, 1_000, {
-            min: 100,
-            max: MAX_TIMEOUT_MS,
-          }),
-        );
-        continue;
-      }
-
-      if (action === "screenshot") {
-        const screenshotPath = resolveUserPath(
-          toSafeString(step.path, `./tmp/playwright-shot-${Date.now()}-${index + 1}.png`),
-          context,
-          "playwright screenshot",
-        );
-        await ensureParentDirectory(screenshotPath);
-        await page.screenshot({
-          path: screenshotPath,
-          fullPage: toBoolean(step.fullPage, true),
-        });
-        screenshots.push(screenshotPath);
-        continue;
-      }
-
-      if (action === "extract_text") {
-        const selector = toSafeString(step.selector, "");
-        const key = toSafeString(step.key, `text_${index + 1}`);
-        const text = await page.$eval(selector, (el) => (el.textContent || "").trim());
-        extracted[key] = text;
-        continue;
-      }
-
-      throw new Error(`Unsupported Playwright action: ${action}`);
+      continue;
     }
 
-    return {
-      finalUrl: page.url(),
-      title: await page.title(),
-      extracted,
-      screenshots,
-      stepCount: steps.length,
-    };
-  } finally {
-    await browserContext.close();
-    await browser.close();
+    if (action === "wait_for_timeout") {
+      await page.waitForTimeout(
+        toFiniteInt(step.timeoutMs, 1_000, {
+          min: 100,
+          max: MAX_TIMEOUT_MS,
+        }),
+      );
+      continue;
+    }
+
+    if (action === "screenshot") {
+      const screenshotPath = resolveUserPath(
+        toSafeString(step.path, `./tmp/playwright-shot-${Date.now()}-${index + 1}.png`),
+        context,
+        "playwright screenshot",
+      );
+      await ensureParentDirectory(screenshotPath);
+      await page.screenshot({
+        path: screenshotPath,
+        fullPage: toBoolean(step.fullPage, true),
+      });
+      screenshots.push(screenshotPath);
+      continue;
+    }
+
+    if (action === "extract_text") {
+      const selector = toSafeString(step.selector, "");
+      const key = toSafeString(step.key, `text_${index + 1}`);
+      const text = await page.$eval(selector, (el) => (el.textContent || "").trim());
+      extracted[key] = text;
+      continue;
+    }
+
+    throw new Error(`Unsupported Playwright action: ${action}`);
   }
+
+  emitToolLog(context, "Playwright browser remains open and will not be auto-closed.", {
+    finalUrl: page.url(),
+  });
+
+  return {
+    finalUrl: page.url(),
+    title: await page.title(),
+    extracted,
+    screenshots,
+    stepCount: steps.length,
+    mode: "playwright",
+    autoClosed: false,
+  };
 }
 
 async function socialPublishRun(args, context) {

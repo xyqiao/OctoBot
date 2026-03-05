@@ -103,9 +103,22 @@ export function createLangChainTools(options = {}) {
     }),
     tool(createToolRunner("browser_playwright_run", options), {
       name: "browser_playwright_run",
-      description: "通过 Playwright 执行浏览器自动化步骤，适合发布与运营流程。",
+      description:
+        "浏览器能力：默认仅打开 URL 时走系统默认浏览器；有步骤时走 Playwright 自动化，且不会自动关闭窗口。",
       schema: z.object({
         url: z.string().optional().describe("初始打开页面"),
+        mode: z
+          .enum(["system", "playwright"])
+          .optional()
+          .describe("system=系统浏览器，playwright=自动化浏览器"),
+        openInSystemBrowser: z
+          .boolean()
+          .optional()
+          .describe("是否强制使用系统默认浏览器"),
+        forcePlaywright: z
+          .boolean()
+          .optional()
+          .describe("即使只有 URL 也强制用 Playwright"),
         headless: z.boolean().optional().describe("是否无头模式，默认 true"),
         timeoutMs: z.number().int().positive().optional().describe("步骤超时时间毫秒"),
         channel: z.string().optional().describe("浏览器通道，例如 chrome"),

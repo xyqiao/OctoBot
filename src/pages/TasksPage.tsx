@@ -881,7 +881,7 @@ export default function TasksPage() {
               minRows={8}
               fullWidth
               placeholder={payloadPlaceholder}
-              helperText="支持 payload.toolCalls 或 payload.operations。可用工具：file_read_text、file_write_text、file_list_directory、office_read_document、office_write_document、browser_playwright_run、social_publish_run。可选 payload.allowedRoots 限制目录。"
+              helperText="支持 payload.toolCalls 或 payload.operations。可用工具：file_read_text、file_write_text、file_list_directory、office_read_document、office_write_document、browser_playwright_run、social_publish_run。browser_playwright_run 打开的窗口不会自动关闭；可选 payload.allowedRoots 限制目录。"
               sx={{
                 "& textarea": {
                   fontFamily: "Consolas, Menlo, monospace",
