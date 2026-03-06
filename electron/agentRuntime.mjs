@@ -7,7 +7,7 @@ import {
 
 const TOOL_AWARE_SYSTEM_PROMPT = [
   "你是桌面端智能体。",
-  "你可以调用本地工具执行文件读写、办公文档处理、浏览器自动化与自媒体发布。",
+  "你可以调用本地工具执行文件读写、办公文档处理，以及基于 Playwright MCP 的浏览器自动化。",
   "当任务需要真实操作时，优先调用工具，不要只停留在建议层。",
   "输出使用简洁 Markdown，先给结论，再给关键细节。",
 ].join("\n");
@@ -24,12 +24,6 @@ const SKILL_TOOL_NAME_MAP = {
   read_document: "office_read_document",
   office_write_document: "office_write_document",
   write_document: "office_write_document",
-  browser_playwright_run: "browser_playwright_run",
-  playwright_run: "browser_playwright_run",
-  run_browser: "browser_playwright_run",
-  social_publish_run: "social_publish_run",
-  social_publish: "social_publish_run",
-  publish_social: "social_publish_run",
 };
 
 function toText(content) {

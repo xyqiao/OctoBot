@@ -14,6 +14,7 @@ let storage = null;
 let taskScheduler = null;
 let taskDispatcher = null;
 let skillManager = null;
+let shutdownPlaywrightMcp = null;
 const activeChatStreams = new Map();
 let shutdownHandled = false;
 
@@ -111,6 +112,12 @@ function shutdownResources() {
       console.error("[main] Failed to close sqlite storage:", error);
     }
   }
+
+  if (typeof shutdownPlaywrightMcp === "function") {
+    void shutdownPlaywrightMcp().catch((error) => {
+      console.error("[main] Failed to shutdown Playwright MCP:", error);
+    });
+  }
 }
 
 function createWindow() {
@@ -193,6 +200,10 @@ app
       const { TaskDispatcher } = require("./taskEngine/TaskDispatcher.cjs");
       const { WorkerManager } = require("./taskEngine/WorkerManager.cjs");
       const { SkillManager } = require("./skillEngine/SkillManager.cjs");
+      const {
+        warmupPlaywrightMcp,
+        shutdownPlaywrightMcp: shutdownPlaywrightMcpRuntime,
+      } = require("./agentTools/playwrightMcpRuntime.cjs");
       storage = createStorage(app.getPath("userData"));
       skillManager = new SkillManager({
         userDataDir: app.getPath("userData"),
@@ -215,6 +226,17 @@ app
       taskDispatcher = new TaskDispatcher({
         storage,
         workerManager,
+      });
+
+      shutdownPlaywrightMcp = shutdownPlaywrightMcpRuntime;
+      void warmupPlaywrightMcp({
+        onLog: (message) => console.info(message),
+      }).catch((error) => {
+        console.warn(
+          `[main] Playwright MCP startup failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
       });
 
       taskScheduler.start();

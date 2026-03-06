@@ -3,7 +3,32 @@ import { z } from "zod";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { runCapabilityCall, listCapabilityDefinitions } = require("./capabilityExecutor.cjs");
+const {
+  runCapabilityCall,
+  listCapabilityDefinitions,
+} = require("./capabilityExecutor.cjs");
+const {
+  listPlaywrightMcpTools,
+  getCachedPlaywrightMcpTools,
+  callPlaywrightMcpTool,
+} = require("./playwrightMcpRuntime.cjs");
+
+function toSafeString(value, fallback = "") {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  return String(value);
+}
+
+function normalizeObject(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value;
+  }
+  return {};
+}
 
 function createToolRunner(name, options) {
   return async (input) => {
@@ -48,8 +73,8 @@ function createToolRunner(name, options) {
   };
 }
 
-export function createLangChainTools(options = {}) {
-  return [
+export async function createLangChainTools(options = {}) {
+  const tools = [
     tool(createToolRunner("file_read_text", options), {
       name: "file_read_text",
       description: "读取本地文本文件，返回文本内容。",
@@ -101,84 +126,98 @@ export function createLangChainTools(options = {}) {
         prettyJson: z.boolean().optional().describe("JSON 是否格式化"),
       }),
     }),
-    tool(createToolRunner("browser_playwright_run", options), {
-      name: "browser_playwright_run",
-      description:
-        "浏览器能力：默认仅打开 URL 时走系统默认浏览器；有步骤时走 Playwright 自动化，且不会自动关闭窗口。",
-      schema: z.object({
-        url: z.string().optional().describe("初始打开页面"),
-        mode: z
-          .enum(["system", "playwright"])
-          .optional()
-          .describe("system=系统浏览器，playwright=自动化浏览器"),
-        openInSystemBrowser: z
-          .boolean()
-          .optional()
-          .describe("是否强制使用系统默认浏览器"),
-        forcePlaywright: z
-          .boolean()
-          .optional()
-          .describe("即使只有 URL 也强制用 Playwright"),
-        headless: z.boolean().optional().describe("是否无头模式，默认 true"),
-        timeoutMs: z.number().int().positive().optional().describe("步骤超时时间毫秒"),
-        channel: z.string().optional().describe("浏览器通道，例如 chrome"),
-        executablePath: z.string().optional().describe("浏览器可执行文件路径"),
-        steps: z
-          .array(
-            z
-              .object({
-                action: z.string().describe("动作名"),
-              })
-              .passthrough(),
-          )
-          .optional()
-          .describe("自动化步骤列表"),
-      }),
-    }),
-    tool(createToolRunner("social_publish_run", options), {
-      name: "social_publish_run",
-      description:
-        "执行自媒体发布流程，支持 xiaohongshu / douyin / wechat_mp，支持保存草稿或直接发布。",
-      schema: z.object({
-        platform: z
-          .string()
-          .describe("平台：xiaohongshu|xhs|douyin|wechat_mp|公众号"),
-        mode: z
-          .enum(["draft", "publish"])
-          .optional()
-          .describe("执行模式，draft=保存草稿，publish=直接发布"),
-        url: z.string().optional().describe("发布入口 URL，不传则用平台默认"),
-        title: z.string().optional().describe("内容标题"),
-        content: z.string().optional().describe("正文内容"),
-        mediaPaths: z
-          .array(z.string())
-          .optional()
-          .describe("待上传媒体文件路径数组"),
-        waitForManualLogin: z
-          .boolean()
-          .optional()
-          .describe("是否等待人工登录完成"),
-        loginTimeoutMs: z.number().int().positive().optional().describe("登录等待超时"),
-        takeScreenshot: z
-          .boolean()
-          .optional()
-          .describe("执行后是否自动截图"),
-        screenshotPath: z.string().optional().describe("截图输出路径"),
-        steps: z
-          .array(
-            z
-              .object({
-                action: z.string(),
-              })
-              .passthrough(),
-          )
-          .optional()
-          .describe("附加 Playwright 动作"),
-      }),
-    }),
   ];
+
+  try {
+    const mcpTools = await listPlaywrightMcpTools({
+      mcpServers: options?.mcpServers,
+      onLog: options?.onLog,
+      timeoutMs: options?.mcpTimeoutMs,
+    });
+
+    const existingNames = new Set(tools.map((item) => item.name));
+    for (const definition of mcpTools) {
+      const toolName = toSafeString(definition?.name, "").trim();
+      if (!toolName || existingNames.has(toolName)) {
+        continue;
+      }
+      existingNames.add(toolName);
+
+      tools.push(
+        tool(
+          async (input) => {
+            const result = await callPlaywrightMcpTool(
+              toolName,
+              normalizeObject(input),
+              {
+                mcpServers: options?.mcpServers,
+                onLog: options?.onLog,
+                timeoutMs: options?.mcpTimeoutMs,
+              },
+            );
+            return {
+              server: "playwright",
+              toolName,
+              result,
+            };
+          },
+          {
+            name: toolName,
+            description:
+              toSafeString(definition?.description, "").trim() ||
+              `Playwright MCP tool: ${toolName}`,
+            schema: z.object({}).passthrough(),
+          },
+        ),
+      );
+    }
+  } catch (error) {
+    options?.onLog?.(
+      `[MCP/playwright] Failed to load tool definitions: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  const allowed = Array.isArray(options?.allowedToolNames)
+    ? options.allowedToolNames
+    : [];
+  const allowedSet = new Set(
+    allowed
+      .map((item) => String(item).trim())
+      .filter(Boolean),
+  );
+
+  if (allowedSet.size === 0) {
+    return tools;
+  }
+
+  const filtered = tools.filter((toolItem) => allowedSet.has(toolItem.name));
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  options?.onLog?.(
+    `Allowed tool names were provided but no registered tools matched: ${Array.from(
+      allowedSet,
+    ).join(", ")}`,
+  );
+  return tools;
 }
 
 export function listCapabilityTools() {
-  return listCapabilityDefinitions();
+  const baseTools = listCapabilityDefinitions().filter(
+    (item) =>
+      item.name !== "browser_playwright_run" &&
+      item.name !== "social_publish_run",
+  );
+
+  const mcpTools = getCachedPlaywrightMcpTools().map((item) => ({
+    name: item.name,
+    description:
+      toSafeString(item.description, "").trim() ||
+      `Playwright MCP tool: ${item.name}`,
+  }));
+
+  return [...baseTools, ...mcpTools];
 }

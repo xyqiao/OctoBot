@@ -29,6 +29,8 @@
     "@langchain/openai": "^1.2.12",
     "@mui/icons-material": "^6.4.7",
     "@mui/material": "^6.4.7",
+    "@playwright/mcp": "^0.0.68",
+    "adm-zip": "^0.5.16",
     "better-sqlite3": "^12.6.2",
     "docx": "^9.6.0",
     "langchain": "^1.2.29",
