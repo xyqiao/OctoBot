@@ -2,6 +2,8 @@ import type {
   AgentTask,
   ChatMessage,
   ChatSession,
+  SkillDescriptor,
+  SkillInstallPayload,
   TaskCreatePayload,
   TaskDefinition,
   TaskRun,
@@ -107,6 +109,38 @@ export async function getSettings() {
 
 export async function saveSettings(settings: UserSettings) {
   return ensureDesktopApi().saveSettings(settings);
+}
+
+export async function listSkills() {
+  return ensureDesktopApi().listSkills() as Promise<SkillDescriptor[]>;
+}
+
+export async function listEnabledSkills() {
+  return ensureDesktopApi().listEnabledSkills() as Promise<SkillDescriptor[]>;
+}
+
+export async function getSkillById(id: string) {
+  return ensureDesktopApi().getSkillById(id) as Promise<SkillDescriptor | null>;
+}
+
+export async function installSkill(payload: SkillInstallPayload) {
+  return ensureDesktopApi().installSkill(payload) as Promise<SkillDescriptor>;
+}
+
+export async function uninstallSkill(id: string) {
+  return ensureDesktopApi().uninstallSkill(id) as Promise<boolean>;
+}
+
+export async function enableSkill(id: string) {
+  return ensureDesktopApi().enableSkill(id) as Promise<boolean>;
+}
+
+export async function disableSkill(id: string) {
+  return ensureDesktopApi().disableSkill(id) as Promise<boolean>;
+}
+
+export async function refreshSkillsCatalog() {
+  return ensureDesktopApi().refreshSkillsCatalog() as Promise<SkillDescriptor[]>;
 }
 
 export function createMessage(chatId: string, role: ChatMessage["role"], content: string): ChatMessage {

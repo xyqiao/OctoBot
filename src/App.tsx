@@ -22,6 +22,7 @@ import {
   renameChat,
 } from "./utils/db";
 import ChatPage from "./pages/ChatPage";
+import SkillsPage from "./pages/SkillsPage";
 import TasksPage from "./pages/TasksPage";
 import SettingsPage from "./pages/SettingsPage";
 import AppSidebar from "./components/AppSidebar";
@@ -208,6 +209,7 @@ export default function App() {
               />
             )}
             {view === "tasks" && <TasksPage />}
+            {view === "skills" && <SkillsPage />}
             {view === "settings" && <SettingsPage />}
           </Paper>
         </Stack>

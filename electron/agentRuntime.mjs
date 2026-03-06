@@ -1,6 +1,9 @@
 import { createAgent } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
-import { createLangChainTools, listCapabilityTools } from "./agentTools/langchainTools.mjs";
+import {
+  createLangChainTools,
+  listCapabilityTools,
+} from "./agentTools/langchainTools.mjs";
 
 const TOOL_AWARE_SYSTEM_PROMPT = [
   "你是桌面端智能体。",
@@ -8,6 +11,26 @@ const TOOL_AWARE_SYSTEM_PROMPT = [
   "当任务需要真实操作时，优先调用工具，不要只停留在建议层。",
   "输出使用简洁 Markdown，先给结论，再给关键细节。",
 ].join("\n");
+
+const SKILL_TOOL_NAME_MAP = {
+  file_read_text: "file_read_text",
+  read_text: "file_read_text",
+  file_write_text: "file_write_text",
+  write_text: "file_write_text",
+  append_text: "file_write_text",
+  file_list_directory: "file_list_directory",
+  list_directory: "file_list_directory",
+  office_read_document: "office_read_document",
+  read_document: "office_read_document",
+  office_write_document: "office_write_document",
+  write_document: "office_write_document",
+  browser_playwright_run: "browser_playwright_run",
+  playwright_run: "browser_playwright_run",
+  run_browser: "browser_playwright_run",
+  social_publish_run: "social_publish_run",
+  social_publish: "social_publish_run",
+  publish_social: "social_publish_run",
+};
 
 function toText(content) {
   if (typeof content === "string") {
@@ -66,6 +89,224 @@ function summarizeJson(value, maxLen = 240) {
 function pushLog(logs, onLog, text) {
   logs.push(text);
   onLog?.(text);
+}
+
+function normalizeText(value) {
+  return toText(value).toLowerCase();
+}
+
+function normalizeSkillToolName(value) {
+  const raw = toText(value).trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+  return SKILL_TOOL_NAME_MAP[raw] || raw;
+}
+
+function uniqueStrings(values = []) {
+  const seen = new Set();
+  const result = [];
+  for (const value of values) {
+    const text = toText(value).trim();
+    if (!text || seen.has(text)) {
+      continue;
+    }
+    seen.add(text);
+    result.push(text);
+  }
+  return result;
+}
+
+function normalizeSkillSpec(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const aliases = Array.isArray(source?.triggers?.aliases)
+    ? source.triggers.aliases
+    : [];
+  const keywords = Array.isArray(source?.triggers?.keywords)
+    ? source.triggers.keywords
+    : [];
+  const tools = Array.isArray(source.tools) ? source.tools : [];
+  const fallback = Array.isArray(source.fallback) ? source.fallback : [];
+  const steps = Array.isArray(source.steps) ? source.steps : [];
+
+  return {
+    id: toText(source.id || "").trim(),
+    name: toText(source.name || source.displayName || "").trim(),
+    displayName: toText(source.displayName || source.name || "").trim(),
+    description: toText(source.description || "").trim(),
+    purpose: toText(source.purpose || "").trim(),
+    trigger: toText(source.trigger || "").trim(),
+    tools: uniqueStrings(tools.map(normalizeSkillToolName).filter(Boolean)),
+    fallback: uniqueStrings(fallback),
+    steps: uniqueStrings(steps),
+    triggers: {
+      aliases: uniqueStrings(aliases),
+      keywords: uniqueStrings(keywords),
+    },
+  };
+}
+
+function hasSkillExplicitMention(promptLower, skill) {
+  const names = uniqueStrings([
+    skill.displayName,
+    skill.name,
+    ...skill.triggers.aliases,
+  ]).map((item) => item.toLowerCase());
+
+  return names.some((name) => {
+    if (!name) {
+      return false;
+    }
+    return (
+      promptLower.includes(`$${name}`) ||
+      promptLower.includes(`#${name}`) ||
+      promptLower.includes(name)
+    );
+  });
+}
+
+function computeSkillSemanticScore(promptLower, skill) {
+  const tokens = uniqueStrings([
+    ...skill.triggers.keywords,
+    ...skill.triggers.aliases,
+    ...skill.tools,
+    skill.name,
+    skill.displayName,
+  ]).map((item) => item.toLowerCase());
+
+  let score = 0;
+  for (const token of tokens) {
+    if (!token) {
+      continue;
+    }
+    if (!promptLower.includes(token)) {
+      continue;
+    }
+    if (skill.tools.map((item) => item.toLowerCase()).includes(token)) {
+      score += 2;
+      continue;
+    }
+    if (token.length >= 4) {
+      score += 2;
+    } else {
+      score += 1;
+    }
+  }
+
+  const purposeText = normalizeText(
+    `${skill.description}\n${skill.purpose}\n${skill.trigger}`,
+  );
+  if (
+    purposeText &&
+    promptLower.includes(purposeText.slice(0, Math.min(30, purposeText.length)))
+  ) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function selectSkillsForPrompt(prompt, enabledSkillSpecs = [], maxSkills = 3) {
+  const skills = enabledSkillSpecs
+    .map(normalizeSkillSpec)
+    .filter((skill) => skill.displayName || skill.name);
+
+  if (skills.length === 0) {
+    return {
+      selectedSkills: [],
+      matchReason: "none",
+    };
+  }
+
+  const promptLower = normalizeText(prompt);
+  const explicitMatches = skills.filter((skill) =>
+    hasSkillExplicitMention(promptLower, skill),
+  );
+
+  const selected = [];
+  const selectedIds = new Set();
+  for (const skill of explicitMatches) {
+    const id = skill.id || skill.name || skill.displayName;
+    if (selectedIds.has(id)) {
+      continue;
+    }
+    selected.push(skill);
+    selectedIds.add(id);
+    if (selected.length >= maxSkills) {
+      break;
+    }
+  }
+
+  const reason = selected.length > 0 ? "explicit" : "semantic";
+  if (selected.length < maxSkills) {
+    const semanticCandidates = skills
+      .map((skill) => ({
+        skill,
+        score: computeSkillSemanticScore(promptLower, skill),
+      }))
+      .filter((item) => item.score >= 2)
+      .sort((left, right) => right.score - left.score);
+
+    for (const candidate of semanticCandidates) {
+      const id =
+        candidate.skill.id ||
+        candidate.skill.name ||
+        candidate.skill.displayName;
+      if (selectedIds.has(id)) {
+        continue;
+      }
+      selected.push(candidate.skill);
+      selectedIds.add(id);
+      if (selected.length >= maxSkills) {
+        break;
+      }
+    }
+  }
+
+  return {
+    selectedSkills: selected,
+    matchReason: selected.length > 0 ? reason : "none",
+  };
+}
+
+function buildSkillPromptPatch(selectedSkills = []) {
+  if (!Array.isArray(selectedSkills) || selectedSkills.length === 0) {
+    return "";
+  }
+
+  const sections = selectedSkills.map((skill, index) => {
+    return [
+      `${index + 1}. ${skill.displayName || skill.name}`,
+      skill.description ? `- 描述: ${skill.description}` : "",
+      skill.purpose ? `- 用途: ${skill.purpose}` : "",
+      skill.trigger ? `- 触发条件: ${skill.trigger}` : "",
+      skill.steps.length > 0
+        ? `- 执行步骤:\n${skill.steps.map((step, stepIndex) => `  ${stepIndex + 1}) ${step}`).join("\n")}`
+        : "",
+      skill.tools.length > 0 ? `- 依赖工具: ${skill.tools.join(", ")}` : "",
+      skill.fallback.length > 0
+        ? `- 失败回退:\n${skill.fallback.map((item) => `  - ${item}`).join("\n")}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  });
+
+  return [
+    "你当前必须遵循以下已匹配技能规范：",
+    ...sections,
+    "执行要求：严格按技能步骤执行；工具调用优先使用技能列出的依赖工具；失败时按回退策略处理并说明。",
+  ].join("\n\n");
+}
+
+function collectAllowedToolsFromSkills(selectedSkills = []) {
+  const tools = uniqueStrings(
+    selectedSkills
+      .flatMap((skill) => (Array.isArray(skill.tools) ? skill.tools : []))
+      .map(normalizeSkillToolName)
+      .filter(Boolean),
+  );
+  return tools;
 }
 
 function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "") {
@@ -161,8 +402,41 @@ function buildToolEventLog(event) {
   return "";
 }
 
-async function runToolAwareAgent({ prompt, model, signal, onChunk, onLog }) {
+async function runToolAwareAgent({
+  prompt,
+  model,
+  signal,
+  onChunk,
+  onLog,
+  enabledSkillSpecs = [],
+}) {
   const logs = [];
+  const { selectedSkills, matchReason } = selectSkillsForPrompt(
+    prompt,
+    enabledSkillSpecs,
+  );
+  const allowedToolNames = collectAllowedToolsFromSkills(selectedSkills);
+  const skillPatch = buildSkillPromptPatch(selectedSkills);
+  const finalPrompt = prompt;
+
+  if (selectedSkills.length > 0) {
+    pushLog(
+      logs,
+      onLog,
+      `[SKILL] 命中 ${selectedSkills.length} 个技能（${matchReason}）：${selectedSkills
+        .map((item) => item.displayName || item.name)
+        .join(", ")}`,
+    );
+    if (allowedToolNames.length > 0) {
+      pushLog(
+        logs,
+        onLog,
+        `[SKILL] 工具白名单：${allowedToolNames.join(", ")}`,
+      );
+    }
+  } else if (enabledSkillSpecs.length > 0) {
+    pushLog(logs, onLog, "[SKILL] 未命中可自动触发技能，按通用流程执行。");
+  }
 
   if (!model) {
     const supportedTools = listCapabilityTools()
@@ -177,7 +451,7 @@ async function runToolAwareAgent({ prompt, model, signal, onChunk, onLog }) {
       supportedTools,
       "",
       "输入摘要：",
-      prompt.slice(0, 260),
+      finalPrompt.slice(0, 260),
     ].join("\n");
 
     for (const part of chunkText(fallbackAnswer)) {
@@ -191,20 +465,24 @@ async function runToolAwareAgent({ prompt, model, signal, onChunk, onLog }) {
     };
   }
 
-  const tools = createLangChainTools({
+  const tools = await createLangChainTools({
     baseDir: process.cwd(),
     runContext: {
       source: "chat_agent",
     },
+    allowedToolNames,
     onLog: (message) => {
       pushLog(logs, onLog, `[TOOL] ${message}`);
     },
   });
 
+  const agentPrompt = [TOOL_AWARE_SYSTEM_PROMPT, skillPatch]
+    .filter(Boolean)
+    .join("\n\n");
   const agent = createAgent({
     model,
     tools,
-    prompt: TOOL_AWARE_SYSTEM_PROMPT,
+    prompt: agentPrompt,
   });
 
   pushLog(logs, onLog, "[INFO] 工具智能体已启动（token 流式）。");
@@ -213,7 +491,7 @@ async function runToolAwareAgent({ prompt, model, signal, onChunk, onLog }) {
     messages: [
       {
         role: "user",
-        content: prompt,
+        content: finalPrompt,
       },
     ],
   };
@@ -285,6 +563,7 @@ export async function runMultiAgentChatStream({
   apiKey,
   modelName,
   baseUrl,
+  enabledSkillSpecs = [],
   signal,
   onChunk,
   onLog,
@@ -293,27 +572,42 @@ export async function runMultiAgentChatStream({
   return runToolAwareAgent({
     prompt,
     model,
+    enabledSkillSpecs,
     signal,
     onChunk,
     onLog,
   });
 }
 
-export async function runMultiAgentChat({ prompt, apiKey, modelName, baseUrl }) {
+export async function runMultiAgentChat({
+  prompt,
+  apiKey,
+  modelName,
+  baseUrl,
+  enabledSkillSpecs = [],
+}) {
   return runMultiAgentChatStream({
     prompt,
     apiKey,
     modelName,
     baseUrl,
+    enabledSkillSpecs,
   });
 }
 
-export async function runTaskWorkflow({ prompt, apiKey, modelName, baseUrl }) {
+export async function runTaskWorkflow({
+  prompt,
+  apiKey,
+  modelName,
+  baseUrl,
+  enabledSkillSpecs = [],
+}) {
   const result = await runMultiAgentChat({
     prompt,
     apiKey,
     modelName,
     baseUrl,
+    enabledSkillSpecs,
   });
 
   return {

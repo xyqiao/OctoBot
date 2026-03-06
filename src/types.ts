@@ -1,4 +1,4 @@
-export type NavView = "chat" | "tasks" | "settings";
+export type NavView = "chat" | "tasks" | "skills" | "settings";
 
 export type MessageRole = "user" | "assistant";
 
@@ -39,6 +39,31 @@ export interface UserSettings {
   desktopNotifications: boolean;
   developerLogging: boolean;
   dataTelemetry: boolean;
+}
+
+export type SkillSource = "builtin" | "upload";
+export type SkillInstallStatus = "installed" | "not_installed";
+
+export interface SkillDescriptor {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  iconPath?: string | null;
+  source: SkillSource;
+  installStatus: SkillInstallStatus;
+  enabled: boolean;
+  installPath?: string | null;
+  version?: string | null;
+  triggers: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SkillInstallPayload {
+  skillId?: string;
+  archiveBytes?: ArrayBuffer | Uint8Array | number[];
+  fileName?: string;
 }
 
 export interface AgentEvent {

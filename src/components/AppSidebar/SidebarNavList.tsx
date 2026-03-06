@@ -1,7 +1,12 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import ChecklistRoundedIcon from "@mui/icons-material/ChecklistRounded";
 import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
-import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
+import {
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
 import type { NavView } from "../../types";
 
 type SidebarNavListProps = {
@@ -46,18 +51,29 @@ export default function SidebarNavList({
         }}
       >
         <ListItemIcon sx={{ minWidth: 38 }}>
-          <ChecklistRoundedIcon color={view === "tasks" ? "primary" : "action"} />
+          <ChecklistRoundedIcon
+            color={view === "tasks" ? "primary" : "action"}
+          />
         </ListItemIcon>
-        <ListItemText primary="任务列表" />
+        <ListItemText primary="任务" />
       </ListItemButton>
 
-      <ListItemButton sx={{ borderRadius: 2, py: 1.05 }}>
+      <ListItemButton
+        selected={view === "skills"}
+        onClick={() => onSelectView("skills")}
+        sx={{
+          borderRadius: 1.6,
+          py: 1.05,
+          backgroundColor: view === "skills" ? "#edf2fb" : "transparent",
+        }}
+      >
         <ListItemIcon sx={{ minWidth: 38 }}>
-          <ExtensionOutlinedIcon color="action" />
+          <ExtensionOutlinedIcon
+            color={view === "skills" ? "primary" : "action"}
+          />
         </ListItemIcon>
         <ListItemText primary="技能" />
       </ListItemButton>
     </List>
   );
 }
-

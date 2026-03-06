@@ -13,6 +13,7 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let storage = null;
 let taskScheduler = null;
 let taskDispatcher = null;
+let skillManager = null;
 const activeChatStreams = new Map();
 let shutdownHandled = false;
 
@@ -54,6 +55,26 @@ function runtimeModuleUrl() {
 
 async function getRuntime() {
   return import(runtimeModuleUrl());
+}
+
+async function withEnabledSkills(payload = {}) {
+  const normalizedPayload =
+    payload && typeof payload === "object" ? payload : {};
+
+  if (!skillManager?.listEnabledSkillSpecs) {
+    return normalizedPayload;
+  }
+
+  try {
+    const enabledSkillSpecs = await skillManager.listEnabledSkillSpecs();
+    return {
+      ...normalizedPayload,
+      enabledSkillSpecs,
+    };
+  } catch (error) {
+    console.warn("[main] Failed to load enabled skill specs:", error);
+    return normalizedPayload;
+  }
 }
 
 function shutdownResources() {
@@ -171,7 +192,16 @@ app
       const { TaskScheduler } = require("./taskEngine/TaskScheduler.cjs");
       const { TaskDispatcher } = require("./taskEngine/TaskDispatcher.cjs");
       const { WorkerManager } = require("./taskEngine/WorkerManager.cjs");
+      const { SkillManager } = require("./skillEngine/SkillManager.cjs");
       storage = createStorage(app.getPath("userData"));
+      skillManager = new SkillManager({
+        userDataDir: app.getPath("userData"),
+        builtinSkillsDir: path.join(__dirname, "skills_builtin"),
+        logger: console,
+      });
+      void skillManager.init().catch((error) => {
+        console.error("[main] Failed to initialize skill manager:", error);
+      });
 
       const workerManager = new WorkerManager({
         storage,
@@ -209,7 +239,7 @@ app
 
     ipcMain.handle("agent:chat", async (_event, payload) => {
       const runtime = await getRuntime();
-      return runtime.runMultiAgentChat(payload);
+      return runtime.runMultiAgentChat(await withEnabledSkills(payload));
     });
 
     ipcMain.handle(
@@ -233,7 +263,7 @@ app
         void (async () => {
           try {
             const result = await runtime.runMultiAgentChatStream({
-              ...payload,
+              ...(await withEnabledSkills(payload)),
               signal: controller.signal,
               onChunk: (chunk) => send({ type: "chunk", chunk }),
               onLog: (log) => send({ type: "log", log }),
@@ -265,7 +295,7 @@ app
 
     ipcMain.handle("agent:task", async (_event, payload) => {
       const runtime = await getRuntime();
-      return runtime.runTaskWorkflow(payload);
+      return runtime.runTaskWorkflow(await withEnabledSkills(payload));
     });
 
     ipcMain.handle("task:create", (_event, payload) =>
@@ -324,6 +354,55 @@ app
     ipcMain.handle("task:run:logs", (_event, runId, limit) =>
       storage.listTaskRunLogs(runId, limit),
     );
+
+    ipcMain.handle("skill:list", async () => {
+      if (!skillManager) {
+        return [];
+      }
+      return skillManager.listSkills();
+    });
+    ipcMain.handle("skill:listEnabled", async () => {
+      if (!skillManager) {
+        return [];
+      }
+      return skillManager.listEnabledSkills();
+    });
+    ipcMain.handle("skill:get", async (_event, id) => {
+      if (!skillManager) {
+        return null;
+      }
+      return skillManager.getSkillById(id);
+    });
+    ipcMain.handle("skill:install", async (_event, payload) => {
+      if (!skillManager) {
+        throw new Error("Skill manager is unavailable.");
+      }
+      return skillManager.installSkill(payload);
+    });
+    ipcMain.handle("skill:uninstall", async (_event, id) => {
+      if (!skillManager) {
+        return false;
+      }
+      return skillManager.uninstallSkill(id);
+    });
+    ipcMain.handle("skill:enable", async (_event, id) => {
+      if (!skillManager) {
+        return false;
+      }
+      return skillManager.enableSkill(id);
+    });
+    ipcMain.handle("skill:disable", async (_event, id) => {
+      if (!skillManager) {
+        return false;
+      }
+      return skillManager.disableSkill(id);
+    });
+    ipcMain.handle("skill:refresh", async () => {
+      if (!skillManager) {
+        return [];
+      }
+      return skillManager.listSkills();
+    });
 
     ipcMain.handle("db:bootstrap", () => storage.bootstrapData());
     ipcMain.handle("db:listChats", () => storage.listChats());

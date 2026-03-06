@@ -119,6 +119,31 @@ interface DesktopUserSettings {
   dataTelemetry: boolean;
 }
 
+type DesktopSkillSource = "builtin" | "upload";
+type DesktopSkillInstallStatus = "installed" | "not_installed";
+
+interface DesktopSkill {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  iconPath?: string | null;
+  source: DesktopSkillSource;
+  installStatus: DesktopSkillInstallStatus;
+  enabled: boolean;
+  installPath?: string | null;
+  version?: string | null;
+  triggers: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface DesktopSkillInstallPayload {
+  skillId?: string;
+  archiveBytes?: ArrayBuffer | Uint8Array | number[];
+  fileName?: string;
+}
+
 interface AgentRuntimePayload {
   prompt: string;
   apiKey?: string;
@@ -162,13 +187,17 @@ declare global {
   interface Window {
     desktopApi?: {
       notify: (title: string, body: string) => Promise<boolean>;
-      runAgentChat: (payload: AgentRuntimePayload) => Promise<AgentRuntimeResult>;
+      runAgentChat: (
+        payload: AgentRuntimePayload,
+      ) => Promise<AgentRuntimeResult>;
       runAgentChatStream: (
         payload: AgentRuntimePayload,
         onEvent: (event: AgentRuntimeStreamEvent) => void,
       ) => Promise<string>;
       cancelAgentChatStream: (streamId: string) => Promise<boolean>;
-      runTaskWorkflow: (payload: AgentRuntimePayload) => Promise<AgentRuntimeResult>;
+      runTaskWorkflow: (
+        payload: AgentRuntimePayload,
+      ) => Promise<AgentRuntimeResult>;
       createTaskDefinition: (
         payload: DesktopTaskCreatePayload,
       ) => Promise<DesktopTaskDefinition | null>;
@@ -182,9 +211,18 @@ declare global {
         taskId: string,
         options?: { triggerType?: DesktopTaskTriggerType; priority?: number },
       ) => Promise<DesktopTaskRun | null>;
-      listTaskRuns: (taskId: string, limit?: number) => Promise<DesktopTaskRun[]>;
-      cancelTaskRun: (runId: string, reason?: string) => Promise<DesktopTaskRunCancelResult>;
-      listTaskRunLogs: (runId: string, limit?: number) => Promise<DesktopTaskRunLog[]>;
+      listTaskRuns: (
+        taskId: string,
+        limit?: number,
+      ) => Promise<DesktopTaskRun[]>;
+      cancelTaskRun: (
+        runId: string,
+        reason?: string,
+      ) => Promise<DesktopTaskRunCancelResult>;
+      listTaskRunLogs: (
+        runId: string,
+        limit?: number,
+      ) => Promise<DesktopTaskRunLog[]>;
       bootstrapData: () => Promise<boolean>;
       listChats: () => Promise<DesktopChatSession[]>;
       createChat: () => Promise<DesktopChatSession>;
@@ -196,6 +234,14 @@ declare global {
       upsertTask: (task: DesktopAgentTask) => Promise<boolean>;
       getSettings: () => Promise<DesktopUserSettings>;
       saveSettings: (settings: DesktopUserSettings) => Promise<boolean>;
+      listSkills: () => Promise<DesktopSkill[]>;
+      listEnabledSkills: () => Promise<DesktopSkill[]>;
+      getSkillById: (id: string) => Promise<DesktopSkill | null>;
+      installSkill: (payload: DesktopSkillInstallPayload) => Promise<DesktopSkill>;
+      uninstallSkill: (id: string) => Promise<boolean>;
+      enableSkill: (id: string) => Promise<boolean>;
+      disableSkill: (id: string) => Promise<boolean>;
+      refreshSkillsCatalog: () => Promise<DesktopSkill[]>;
     };
   }
 }
