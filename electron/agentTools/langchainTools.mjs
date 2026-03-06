@@ -230,8 +230,7 @@ export function listCapabilityTools() {
     (item) =>
       item.name !== "file_read_text" &&
       item.name !== "file_write_text" &&
-      item.name !== "file_list_directory" &&
-      item.name !== "browser_playwright_run",
+      item.name !== "file_list_directory",
   );
 
   const filesystemTools = getCachedFilesystemMcpTools().map((item) => ({

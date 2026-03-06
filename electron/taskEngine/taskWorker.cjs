@@ -45,30 +45,13 @@ function assertRunActive(runId) {
   }
 }
 
-function mapActionToCapability(action) {
-  const normalizedAction = toSafeString(action, "").trim().toLowerCase();
-  const actionMap = {
-    file_read_text: "read_text_file",
-    read_text: "read_text_file",
-    file_write_text: "write_file",
-    write_text: "write_file",
-    append_text: "write_file",
-    file_list_directory: "list_directory",
-    list_directory: "list_directory",
-    office_read_document: "office_read_document",
-    read_document: "office_read_document",
-    office_write_document: "office_write_document",
-    write_document: "office_write_document",
-    browser_playwright_run: "browser_playwright_run",
-    playwright_run: "browser_playwright_run",
-    run_browser: "browser_playwright_run",
-  };
-  return actionMap[normalizedAction] || normalizedAction;
+function normalizeCapabilityName(action) {
+  return toSafeString(action, "").trim().toLowerCase();
 }
 
 function normalizeCapabilityCall(rawCall) {
   const source = normalizeObject(rawCall);
-  const name = mapActionToCapability(
+  const name = normalizeCapabilityName(
     source.name || source.capability || source.tool || source.action,
   );
   const nestedArgs = normalizeObject(source.args || source.input || source.params);
