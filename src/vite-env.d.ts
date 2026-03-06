@@ -48,7 +48,7 @@ interface DesktopTaskDefinition {
   id: string;
   title: string;
   description: string;
-  taskType: "file_ops" | "office_doc" | "social_publish" | "custom";
+  taskType: "file_ops" | "office_doc" | "custom";
   payload: Record<string, unknown>;
   lifecycleStatus: DesktopTaskLifecycleStatus;
   schedule: DesktopTaskSchedule;
@@ -95,7 +95,7 @@ interface DesktopTaskCreatePayload {
   id?: string;
   title: string;
   description?: string;
-  taskType?: "file_ops" | "office_doc" | "social_publish" | "custom";
+  taskType?: "file_ops" | "office_doc" | "custom";
   payload?: Record<string, unknown>;
   lifecycleStatus?: DesktopTaskLifecycleStatus;
   schedule?: {

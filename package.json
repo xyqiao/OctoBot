@@ -27,6 +27,7 @@
     "@langchain/core": "1.1.30",
     "@langchain/langgraph": "^1.2.0",
     "@langchain/openai": "^1.2.12",
+    "@modelcontextprotocol/server-filesystem": "^2026.1.14",
     "@mui/icons-material": "^6.4.7",
     "@mui/material": "^6.4.7",
     "@playwright/mcp": "^0.0.68",

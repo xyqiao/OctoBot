@@ -48,13 +48,13 @@ function assertRunActive(runId) {
 function mapActionToCapability(action) {
   const normalizedAction = toSafeString(action, "").trim().toLowerCase();
   const actionMap = {
-    file_read_text: "file_read_text",
-    read_text: "file_read_text",
-    file_write_text: "file_write_text",
-    write_text: "file_write_text",
-    append_text: "file_write_text",
-    file_list_directory: "file_list_directory",
-    list_directory: "file_list_directory",
+    file_read_text: "read_text_file",
+    read_text: "read_text_file",
+    file_write_text: "write_file",
+    write_text: "write_file",
+    append_text: "write_file",
+    file_list_directory: "list_directory",
+    list_directory: "list_directory",
     office_read_document: "office_read_document",
     read_document: "office_read_document",
     office_write_document: "office_write_document",
@@ -62,9 +62,6 @@ function mapActionToCapability(action) {
     browser_playwright_run: "browser_playwright_run",
     playwright_run: "browser_playwright_run",
     run_browser: "browser_playwright_run",
-    social_publish_run: "social_publish_run",
-    social_publish: "social_publish_run",
-    publish_social: "social_publish_run",
   };
   return actionMap[normalizedAction] || normalizedAction;
 }
@@ -104,19 +101,19 @@ function buildTaskFallbackCall(taskType, payload) {
   if (normalizedType === "file_ops") {
     if (source.path && source.content !== undefined) {
       return {
-        name: "file_write_text",
+        name: "write_file",
         args: source,
       };
     }
     if (source.path && source.action === "list_directory") {
       return {
-        name: "file_list_directory",
+        name: "list_directory",
         args: source,
       };
     }
     if (source.path) {
       return {
-        name: "file_read_text",
+        name: "read_text_file",
         args: source,
       };
     }
@@ -132,20 +129,6 @@ function buildTaskFallbackCall(taskType, payload) {
     if (source.path) {
       return {
         name: "office_read_document",
-        args: source,
-      };
-    }
-  }
-
-  if (normalizedType === "social_publish") {
-    if (
-      source.platform ||
-      source.url ||
-      Array.isArray(source.steps) ||
-      Array.isArray(source.mediaPaths)
-    ) {
-      return {
-        name: "social_publish_run",
         args: source,
       };
     }

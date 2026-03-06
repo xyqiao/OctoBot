@@ -165,7 +165,7 @@ function summarizeChatTitle(content) {
   return `${firstSentence.slice(0, maxLen).trim()}...`;
 }
 
-const taskTypes = new Set(["file_ops", "office_doc", "social_publish", "custom"]);
+const taskTypes = new Set(["file_ops", "office_doc", "custom"]);
 const taskLifecycleStatuses = new Set(["draft", "active", "paused", "terminated"]);
 const taskScheduleTypes = new Set(["manual", "once", "cron"]);
 const taskRunStatuses = new Set([

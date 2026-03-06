@@ -12,6 +12,11 @@ const {
   getCachedPlaywrightMcpTools,
   callPlaywrightMcpTool,
 } = require("./playwrightMcpRuntime.cjs");
+const {
+  listFilesystemMcpTools,
+  getCachedFilesystemMcpTools,
+  callFilesystemMcpTool,
+} = require("./filesystemMcpRuntime.cjs");
 
 function toSafeString(value, fallback = "") {
   if (typeof value === "string") {
@@ -28,6 +33,47 @@ function normalizeObject(value) {
     return value;
   }
   return {};
+}
+
+function normalizeToolDescription(value, fallbackPrefix, name) {
+  return (
+    toSafeString(value, "").trim() || `${fallbackPrefix} tool: ${toSafeString(name, "")}`
+  );
+}
+
+async function appendMcpTools(tools, loader) {
+  const existingNames = new Set(tools.map((item) => item.name));
+  const definitions = await loader.list();
+
+  for (const definition of definitions) {
+    const toolName = toSafeString(definition?.name, "").trim();
+    if (!toolName || existingNames.has(toolName)) {
+      continue;
+    }
+    existingNames.add(toolName);
+
+    tools.push(
+      tool(
+        async (input) => {
+          const result = await loader.call(toolName, normalizeObject(input));
+          return {
+            server: loader.server,
+            toolName,
+            result,
+          };
+        },
+        {
+          name: toolName,
+          description: normalizeToolDescription(
+            definition?.description,
+            loader.label,
+            toolName,
+          ),
+          schema: z.object({}).passthrough(),
+        },
+      ),
+    );
+  }
 }
 
 function createToolRunner(name, options) {
@@ -75,35 +121,6 @@ function createToolRunner(name, options) {
 
 export async function createLangChainTools(options = {}) {
   const tools = [
-    tool(createToolRunner("file_read_text", options), {
-      name: "file_read_text",
-      description: "读取本地文本文件，返回文本内容。",
-      schema: z.object({
-        path: z.string().describe("文件路径，支持绝对路径或相对路径"),
-        encoding: z.string().optional().describe("文本编码，默认 utf8"),
-        maxChars: z.number().int().positive().optional().describe("最大返回字符数"),
-      }),
-    }),
-    tool(createToolRunner("file_write_text", options), {
-      name: "file_write_text",
-      description: "写入本地文本文件，可覆盖或追加。",
-      schema: z.object({
-        path: z.string().describe("文件路径"),
-        content: z.string().describe("要写入的内容"),
-        append: z.boolean().optional().describe("是否追加写入"),
-        ensureParentDir: z.boolean().optional().describe("是否自动创建父目录"),
-        encoding: z.string().optional().describe("文本编码，默认 utf8"),
-      }),
-    }),
-    tool(createToolRunner("file_list_directory", options), {
-      name: "file_list_directory",
-      description: "列出目录中的文件和子目录。",
-      schema: z.object({
-        path: z.string().describe("目录路径"),
-        recursive: z.boolean().optional().describe("是否递归列出子目录"),
-        maxEntries: z.number().int().positive().optional().describe("最多返回条目数"),
-      }),
-    }),
     tool(createToolRunner("office_read_document", options), {
       name: "office_read_document",
       description: "读取办公文档，支持 .docx/.xlsx/.xls/.csv/.txt/.md/.json。",
@@ -129,48 +146,51 @@ export async function createLangChainTools(options = {}) {
   ];
 
   try {
-    const mcpTools = await listPlaywrightMcpTools({
-      mcpServers: options?.mcpServers,
-      onLog: options?.onLog,
-      timeoutMs: options?.mcpTimeoutMs,
+    await appendMcpTools(tools, {
+      server: "filesystem",
+      label: "Filesystem MCP",
+      list: () =>
+        listFilesystemMcpTools({
+          mcpServers: options?.mcpServers,
+          onLog: options?.onLog,
+          timeoutMs: options?.mcpTimeoutMs,
+          baseDir: options?.baseDir,
+          allowedRoots: options?.allowedRoots,
+        }),
+      call: (toolName, input) =>
+        callFilesystemMcpTool(toolName, input, {
+          mcpServers: options?.mcpServers,
+          onLog: options?.onLog,
+          timeoutMs: options?.mcpTimeoutMs,
+          baseDir: options?.baseDir,
+          allowedRoots: options?.allowedRoots,
+        }),
     });
+  } catch (error) {
+    options?.onLog?.(
+      `[MCP/filesystem] Failed to load tool definitions: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 
-    const existingNames = new Set(tools.map((item) => item.name));
-    for (const definition of mcpTools) {
-      const toolName = toSafeString(definition?.name, "").trim();
-      if (!toolName || existingNames.has(toolName)) {
-        continue;
-      }
-      existingNames.add(toolName);
-
-      tools.push(
-        tool(
-          async (input) => {
-            const result = await callPlaywrightMcpTool(
-              toolName,
-              normalizeObject(input),
-              {
-                mcpServers: options?.mcpServers,
-                onLog: options?.onLog,
-                timeoutMs: options?.mcpTimeoutMs,
-              },
-            );
-            return {
-              server: "playwright",
-              toolName,
-              result,
-            };
-          },
-          {
-            name: toolName,
-            description:
-              toSafeString(definition?.description, "").trim() ||
-              `Playwright MCP tool: ${toolName}`,
-            schema: z.object({}).passthrough(),
-          },
-        ),
-      );
-    }
+  try {
+    await appendMcpTools(tools, {
+      server: "playwright",
+      label: "Playwright MCP",
+      list: () =>
+        listPlaywrightMcpTools({
+          mcpServers: options?.mcpServers,
+          onLog: options?.onLog,
+          timeoutMs: options?.mcpTimeoutMs,
+        }),
+      call: (toolName, input) =>
+        callPlaywrightMcpTool(toolName, input, {
+          mcpServers: options?.mcpServers,
+          onLog: options?.onLog,
+          timeoutMs: options?.mcpTimeoutMs,
+        }),
+    });
   } catch (error) {
     options?.onLog?.(
       `[MCP/playwright] Failed to load tool definitions: ${
@@ -208,16 +228,36 @@ export async function createLangChainTools(options = {}) {
 export function listCapabilityTools() {
   const baseTools = listCapabilityDefinitions().filter(
     (item) =>
-      item.name !== "browser_playwright_run" &&
-      item.name !== "social_publish_run",
+      item.name !== "file_read_text" &&
+      item.name !== "file_write_text" &&
+      item.name !== "file_list_directory" &&
+      item.name !== "browser_playwright_run",
   );
 
-  const mcpTools = getCachedPlaywrightMcpTools().map((item) => ({
+  const filesystemTools = getCachedFilesystemMcpTools().map((item) => ({
     name: item.name,
-    description:
-      toSafeString(item.description, "").trim() ||
-      `Playwright MCP tool: ${item.name}`,
+    description: normalizeToolDescription(
+      item.description,
+      "Filesystem MCP",
+      item.name,
+    ),
+  }));
+  const playwrightTools = getCachedPlaywrightMcpTools().map((item) => ({
+    name: item.name,
+    description: normalizeToolDescription(
+      item.description,
+      "Playwright MCP",
+      item.name,
+    ),
   }));
 
-  return [...baseTools, ...mcpTools];
+  const merged = [...baseTools, ...filesystemTools, ...playwrightTools];
+  const seen = new Set();
+  return merged.filter((item) => {
+    if (!item?.name || seen.has(item.name)) {
+      return false;
+    }
+    seen.add(item.name);
+    return true;
+  });
 }

@@ -96,7 +96,7 @@ export interface TaskDefinition {
   id: string;
   title: string;
   description: string;
-  taskType: "file_ops" | "office_doc" | "social_publish" | "custom";
+  taskType: "file_ops" | "office_doc" | "custom";
   payload: Record<string, unknown>;
   lifecycleStatus: TaskLifecycleStatus;
   schedule: TaskSchedule;
@@ -143,7 +143,7 @@ export interface TaskCreatePayload {
   id?: string;
   title: string;
   description?: string;
-  taskType?: "file_ops" | "office_doc" | "social_publish" | "custom";
+  taskType?: "file_ops" | "office_doc" | "custom";
   payload?: Record<string, unknown>;
   lifecycleStatus?: TaskLifecycleStatus;
   schedule?: {

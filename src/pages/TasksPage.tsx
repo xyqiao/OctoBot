@@ -134,15 +134,12 @@ export default function TasksPage() {
 
   const payloadPlaceholder = useMemo(() => {
     if (createTaskType === "file_ops") {
-      return '{"toolCalls":[{"name":"file_read_text","args":{"path":"./README.md"}}]}';
+      return '{"toolCalls":[{"name":"read_text_file","args":{"path":"./README.md"}}]}';
     }
     if (createTaskType === "office_doc") {
       return '{"toolCalls":[{"name":"office_read_document","args":{"path":"./report.xlsx","sheetName":"Sheet1"}}]}';
     }
-    if (createTaskType === "social_publish") {
-      return '{"toolCalls":[{"name":"social_publish_run","args":{"platform":"xiaohongshu","mode":"draft","title":"标题","content":"正文","mediaPaths":["~/Desktop/cover.png"]}}]}';
-    }
-    return '{"toolCalls":[{"name":"file_list_directory","args":{"path":"./","maxEntries":50}}]}';
+    return '{"toolCalls":[{"name":"list_directory","args":{"path":"./","maxEntries":50}}]}';
   }, [createTaskType]);
 
   const activeTask = useMemo(
@@ -826,7 +823,6 @@ export default function TasksPage() {
                 <MenuItem value="custom">custom（自定义）</MenuItem>
                 <MenuItem value="file_ops">file_ops（文件读写）</MenuItem>
                 <MenuItem value="office_doc">office_doc（办公文档）</MenuItem>
-                <MenuItem value="social_publish">social_publish（内容发布）</MenuItem>
               </TextField>
               <TextField
                 select
@@ -881,7 +877,7 @@ export default function TasksPage() {
               minRows={8}
               fullWidth
               placeholder={payloadPlaceholder}
-              helperText="支持 payload.toolCalls 或 payload.operations。可用工具：file_read_text、file_write_text、file_list_directory、office_read_document、office_write_document、browser_playwright_run、social_publish_run。browser_playwright_run 打开的窗口不会自动关闭；可选 payload.allowedRoots 限制目录。"
+              helperText="支持 payload.toolCalls 或 payload.operations。文件工具建议使用 read_text_file、write_file、list_directory（由 filesystem MCP 提供）；办公工具为 office_read_document、office_write_document；浏览器兼容工具 browser_playwright_run。可选 payload.allowedRoots 限制目录。"
               sx={{
                 "& textarea": {
                   fontFamily: "Consolas, Menlo, monospace",

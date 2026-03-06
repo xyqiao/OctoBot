@@ -13,13 +13,6 @@ const TOOL_AWARE_SYSTEM_PROMPT = [
 ].join("\n");
 
 const SKILL_TOOL_NAME_MAP = {
-  file_read_text: "file_read_text",
-  read_text: "file_read_text",
-  file_write_text: "file_write_text",
-  write_text: "file_write_text",
-  append_text: "file_write_text",
-  file_list_directory: "file_list_directory",
-  list_directory: "file_list_directory",
   office_read_document: "office_read_document",
   read_document: "office_read_document",
   office_write_document: "office_write_document",

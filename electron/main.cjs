@@ -15,6 +15,7 @@ let taskScheduler = null;
 let taskDispatcher = null;
 let skillManager = null;
 let shutdownPlaywrightMcp = null;
+let shutdownFilesystemMcp = null;
 const activeChatStreams = new Map();
 let shutdownHandled = false;
 
@@ -118,6 +119,12 @@ function shutdownResources() {
       console.error("[main] Failed to shutdown Playwright MCP:", error);
     });
   }
+
+  if (typeof shutdownFilesystemMcp === "function") {
+    void shutdownFilesystemMcp().catch((error) => {
+      console.error("[main] Failed to shutdown Filesystem MCP:", error);
+    });
+  }
 }
 
 function createWindow() {
@@ -204,6 +211,10 @@ app
         warmupPlaywrightMcp,
         shutdownPlaywrightMcp: shutdownPlaywrightMcpRuntime,
       } = require("./agentTools/playwrightMcpRuntime.cjs");
+      const {
+        warmupFilesystemMcp,
+        shutdownFilesystemMcp: shutdownFilesystemMcpRuntime,
+      } = require("./agentTools/filesystemMcpRuntime.cjs");
       storage = createStorage(app.getPath("userData"));
       skillManager = new SkillManager({
         userDataDir: app.getPath("userData"),
@@ -229,11 +240,22 @@ app
       });
 
       shutdownPlaywrightMcp = shutdownPlaywrightMcpRuntime;
+      shutdownFilesystemMcp = shutdownFilesystemMcpRuntime;
       void warmupPlaywrightMcp({
         onLog: (message) => console.info(message),
       }).catch((error) => {
         console.warn(
           `[main] Playwright MCP startup failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+      void warmupFilesystemMcp({
+        onLog: (message) => console.info(message),
+        baseDir: process.cwd(),
+      }).catch((error) => {
+        console.warn(
+          `[main] Filesystem MCP startup failed: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );

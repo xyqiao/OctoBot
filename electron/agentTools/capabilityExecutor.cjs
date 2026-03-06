@@ -5,6 +5,7 @@ const { spawn } = require("child_process");
 const mammoth = require("mammoth");
 const xlsx = require("xlsx");
 const { Document, HeadingLevel, Packer, Paragraph } = require("docx");
+const { callFilesystemMcpTool } = require("./filesystemMcpRuntime.cjs");
 
 const DEFAULT_TEXT_LIMIT = 120_000;
 const DEFAULT_MAX_LIST_ENTRIES = 200;
@@ -139,14 +140,8 @@ function clipText(text, maxChars = DEFAULT_TEXT_LIMIT) {
 }
 
 function defaultAllowedRoots(baseDir = process.cwd()) {
-  const home = os.homedir();
-  return [
-    baseDir,
-    path.join(home, "Desktop"),
-    path.join(home, "Documents"),
-    path.join(home, "Downloads"),
-    os.tmpdir(),
-  ];
+  const root = path.parse(path.resolve(baseDir || process.cwd())).root;
+  return [root || path.sep || "/"];
 }
 
 function parseAllowedRoots(rawAllowedRoots, baseDir = process.cwd()) {
@@ -234,6 +229,108 @@ async function ensureParentDirectory(filePath) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 }
 
+function extractMcpTextContent(result) {
+  const structured = toSafeString(result?.structuredContent?.content, "");
+  if (structured) {
+    return structured;
+  }
+
+  const contentParts = Array.isArray(result?.content) ? result.content : [];
+  return contentParts
+    .map((part) => toSafeString(part?.text, "").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+function assertMcpToolSuccess(result, toolName) {
+  if (!result || typeof result !== "object") {
+    return;
+  }
+  if (!result.isError) {
+    return;
+  }
+
+  const text = extractMcpTextContent(result);
+  throw new Error(
+    text ||
+      `Filesystem MCP tool "${toSafeString(toolName, "unknown")}" returned an error.`,
+  );
+}
+
+async function callFilesystemTool(toolName, args, context) {
+  const result = await callFilesystemMcpTool(toolName, args, {
+    baseDir: context?.baseDir,
+    allowedRoots: context?.allowedRoots,
+    onLog: context?.onLog,
+  });
+  assertMcpToolSuccess(result, toolName);
+  return result;
+}
+
+function parseListDirectoryText(rawText, dirPath) {
+  const lines = toSafeString(rawText, "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const entries = [];
+  for (const line of lines) {
+    const match = line.match(/^\[(FILE|DIR)\]\s+(.+)$/i);
+    if (!match) {
+      continue;
+    }
+    const type = match[1].toUpperCase() === "DIR" ? "directory" : "file";
+    const name = toSafeString(match[2], "").trim();
+    if (!name) {
+      continue;
+    }
+    entries.push({
+      name,
+      path: path.join(dirPath, name),
+      type,
+    });
+  }
+  return entries;
+}
+
+function flattenDirectoryTree(nodes, parentPath, entries, maxEntries) {
+  const queue = Array.isArray(nodes)
+    ? nodes.map((node) => ({ node, parentPath }))
+    : [];
+
+  while (queue.length > 0 && entries.length < maxEntries) {
+    const current = queue.shift();
+    const item = current?.node && typeof current.node === "object" ? current.node : {};
+    const name = toSafeString(item.name, "").trim();
+    if (!name) {
+      continue;
+    }
+
+    const itemPath = path.join(current.parentPath, name);
+    const rawType = toSafeString(item.type, "").trim().toLowerCase();
+    const type = rawType === "directory" ? "directory" : rawType === "file" ? "file" : "other";
+
+    entries.push({
+      name,
+      path: itemPath,
+      type,
+    });
+
+    if (entries.length >= maxEntries) {
+      break;
+    }
+
+    if (type === "directory" && Array.isArray(item.children)) {
+      for (const child of item.children) {
+        queue.push({
+          node: child,
+          parentPath: itemPath,
+        });
+      }
+    }
+  }
+}
+
 function createAbortError() {
   const error = new Error("RUN_ABORTED");
   error.code = "RUN_ABORTED";
@@ -313,64 +410,6 @@ async function appendAuditRecord(context, record) {
   }
 }
 
-function platformShortcutToName(value) {
-  const normalized = toSafeString(value, "").trim().toLowerCase();
-  if (!normalized) {
-    return "";
-  }
-  if (normalized === "xhs" || normalized === "xiaohongshu" || normalized === "小红书") {
-    return "xiaohongshu";
-  }
-  if (normalized === "douyin" || normalized === "抖音") {
-    return "douyin";
-  }
-  if (
-    normalized === "wechat" ||
-    normalized === "wechat_mp" ||
-    normalized === "weixin" ||
-    normalized === "公众号" ||
-    normalized === "微信公众号"
-  ) {
-    return "wechat_mp";
-  }
-  return normalized;
-}
-
-const SOCIAL_PLATFORM_CONFIG = {
-  xiaohongshu: {
-    startUrl: "https://creator.xiaohongshu.com/publish/publish",
-    readySelector:
-      "input[placeholder*='标题'],textarea[placeholder*='标题'],div[contenteditable='true']",
-    titleSelector: "input[placeholder*='标题'],textarea[placeholder*='标题']",
-    contentSelector:
-      "div[contenteditable='true'],textarea[placeholder*='描述'],textarea[placeholder*='正文']",
-    mediaInputSelector: "input[type='file']",
-    saveDraftSelector: "button:has-text('保存草稿'),button:has-text('存草稿')",
-    publishSelector: "button:has-text('发布')",
-  },
-  douyin: {
-    startUrl: "https://creator.douyin.com/creator-micro/content/upload",
-    readySelector:
-      "input[placeholder*='标题'],textarea[placeholder*='标题'],div[contenteditable='true']",
-    titleSelector: "input[placeholder*='标题'],textarea[placeholder*='标题']",
-    contentSelector:
-      "div[contenteditable='true'],textarea[placeholder*='描述'],textarea[placeholder*='文案']",
-    mediaInputSelector: "input[type='file']",
-    saveDraftSelector: "button:has-text('保存草稿')",
-    publishSelector: "button:has-text('发布')",
-  },
-  wechat_mp: {
-    startUrl: "https://mp.weixin.qq.com/",
-    readySelector:
-      "input[placeholder*='标题'],textarea[placeholder*='标题'],div[contenteditable='true']",
-    titleSelector: "input[placeholder*='标题'],textarea[placeholder*='标题']",
-    contentSelector: "div[contenteditable='true'],textarea",
-    mediaInputSelector: "input[type='file']",
-    saveDraftSelector: "button:has-text('保存草稿')",
-    publishSelector: "button:has-text('发布')",
-  },
-};
-
 async function fillSelectorSmart(page, selector, text) {
   try {
     await page.fill(selector, text);
@@ -392,7 +431,21 @@ async function fileReadText(args, context) {
     "file_read_text",
   );
   const encoding = toSafeString(args.encoding, "utf8");
-  const content = await fs.readFile(targetPath, { encoding });
+  if (encoding.toLowerCase() !== "utf8") {
+    emitToolLog(
+      context,
+      `filesystem MCP read_text_file uses UTF-8. Requested encoding "${encoding}" will be ignored.`,
+    );
+  }
+
+  const result = await callFilesystemTool(
+    "read_text_file",
+    {
+      path: targetPath,
+    },
+    context,
+  );
+  const content = extractMcpTextContent(result);
   const clipped = clipText(content, args.maxChars);
   return {
     path: targetPath,
@@ -415,19 +468,60 @@ async function fileWriteText(args, context) {
   const content = toSafeString(args.content, "");
   const encoding = toSafeString(args.encoding, "utf8");
 
-  if (ensureParentDir) {
-    await ensureParentDirectory(targetPath);
+  if (encoding.toLowerCase() !== "utf8") {
+    emitToolLog(
+      context,
+      `filesystem MCP write_file uses UTF-8. Requested encoding "${encoding}" will be ignored.`,
+    );
   }
 
-  if (append) {
-    await fs.appendFile(targetPath, content, { encoding });
-  } else {
-    await fs.writeFile(targetPath, content, { encoding });
+  if (ensureParentDir) {
+    await callFilesystemTool(
+      "create_directory",
+      {
+        path: path.dirname(targetPath),
+      },
+      context,
+    );
   }
+
+  let nextContent = content;
+  if (append) {
+    let existing = "";
+    try {
+      const readResult = await callFilesystemTool(
+        "read_text_file",
+        {
+          path: targetPath,
+        },
+        context,
+      );
+      existing = extractMcpTextContent(readResult);
+    } catch (error) {
+      const message = toSafeString(error?.message, "").toLowerCase();
+      if (
+        !message.includes("enoent") &&
+        !message.includes("no such file") &&
+        !message.includes("not found")
+      ) {
+        throw error;
+      }
+    }
+    nextContent = `${existing}${content}`;
+  }
+
+  await callFilesystemTool(
+    "write_file",
+    {
+      path: targetPath,
+      content: nextContent,
+    },
+    context,
+  );
 
   return {
     path: targetPath,
-    bytesWritten: Buffer.byteLength(content, encoding),
+    bytesWritten: Buffer.byteLength(content, "utf8"),
     append,
     encoding,
   };
@@ -446,31 +540,35 @@ async function fileListDirectory(args, context) {
     max: 10_000,
   });
 
-  const entries = [];
-  const stack = [targetPath];
-
-  while (stack.length > 0 && entries.length < maxEntries) {
-    assertNotAborted(context);
-    const currentDir = stack.shift();
-    const dirents = await fs.readdir(currentDir, { withFileTypes: true });
-    for (const dirent of dirents) {
-      const absolute = path.join(currentDir, dirent.name);
-      entries.push({
-        name: dirent.name,
-        path: absolute,
-        type: dirent.isDirectory()
-          ? "directory"
-          : dirent.isFile()
-            ? "file"
-            : "other",
-      });
-      if (entries.length >= maxEntries) {
-        break;
-      }
-      if (recursive && dirent.isDirectory()) {
-        stack.push(absolute);
-      }
+  let entries = [];
+  if (recursive) {
+    const treeResult = await callFilesystemTool(
+      "directory_tree",
+      {
+        path: targetPath,
+      },
+      context,
+    );
+    const treeText = extractMcpTextContent(treeResult);
+    let treeNodes = [];
+    try {
+      const parsed = JSON.parse(treeText);
+      treeNodes = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      throw new Error("filesystem MCP directory_tree returned invalid JSON.");
     }
+    entries = [];
+    flattenDirectoryTree(treeNodes, targetPath, entries, maxEntries);
+  } else {
+    const listResult = await callFilesystemTool(
+      "list_directory",
+      {
+        path: targetPath,
+      },
+      context,
+    );
+    const listText = extractMcpTextContent(listResult);
+    entries = parseListDirectoryText(listText, targetPath).slice(0, maxEntries);
   }
 
   return {
@@ -863,127 +961,16 @@ async function browserPlaywrightRun(args, context) {
   };
 }
 
-async function socialPublishRun(args, context) {
-  assertNotAborted(context);
-  const platform = platformShortcutToName(args.platform);
-  const config = SOCIAL_PLATFORM_CONFIG[platform];
-  if (!config) {
-    throw new Error(
-      `Unsupported social platform: ${toSafeString(args.platform, "")}. Supported: xiaohongshu, douyin, wechat_mp.`,
-    );
-  }
-
-  const actionMode = toSafeString(args.mode, "draft").trim().toLowerCase();
-  const title = toSafeString(args.title, "").trim();
-  const content = toSafeString(args.content, "").trim();
-  const mediaPaths = toArray(args.mediaPaths).map((item) => toSafeString(item, "").trim()).filter(Boolean);
-
-  const readySelector = toSafeString(
-    args.readySelector,
-    config.readySelector,
-  );
-  const titleSelector = toSafeString(
-    args.titleSelector,
-    config.titleSelector,
-  );
-  const contentSelector = toSafeString(
-    args.contentSelector,
-    config.contentSelector,
-  );
-  const mediaInputSelector = toSafeString(
-    args.mediaInputSelector,
-    config.mediaInputSelector,
-  );
-  const saveDraftSelector = toSafeString(
-    args.saveDraftSelector,
-    config.saveDraftSelector,
-  );
-  const publishSelector = toSafeString(
-    args.publishSelector,
-    config.publishSelector,
-  );
-
-  const waitForManualLogin =
-    args.waitForManualLogin === undefined
-      ? true
-      : toBoolean(args.waitForManualLogin, true);
-
-  const loginTimeoutMs = toFiniteInt(args.loginTimeoutMs, 180_000, {
-    min: 10_000,
-    max: 20 * 60_000,
-  });
-
-  const targetUrl = toSafeString(args.url, config.startUrl);
-  const steps = [];
-
-  steps.push({ action: "goto", url: targetUrl });
-
-  if (waitForManualLogin && readySelector) {
-    steps.push({
-      action: "wait_for_selector",
-      selector: readySelector,
-      timeoutMs: loginTimeoutMs,
-    });
-  }
-
-  if (mediaPaths.length > 0) {
-    steps.push({
-      action: "set_input_files",
-      selector: mediaInputSelector,
-      files: mediaPaths,
-    });
-    steps.push({ action: "wait_for_timeout", timeoutMs: 2_000 });
-  }
-
-  if (title && titleSelector) {
-    steps.push({ action: "fill", selector: titleSelector, text: title });
-  }
-
-  if (content && contentSelector) {
-    steps.push({ action: "fill", selector: contentSelector, text: content });
-  }
-
-  if (actionMode === "publish") {
-    steps.push({ action: "click", selector: publishSelector });
-  } else {
-    steps.push({ action: "click", selector: saveDraftSelector });
-  }
-
-  steps.push({ action: "wait_for_timeout", timeoutMs: 1_500 });
-
-  if (toBoolean(args.takeScreenshot, true)) {
-    const screenshotDefault = `./tmp/social-${platform}-${Date.now()}.png`;
-    steps.push({
-      action: "screenshot",
-      path: toSafeString(args.screenshotPath, screenshotDefault),
-      fullPage: true,
-    });
-  }
-
-  const result = await browserPlaywrightRun(
-    {
-      ...args,
-      url: targetUrl,
-      steps: [...steps, ...toArray(args.steps)],
-    },
-    context,
-  );
-
-  return {
-    platform,
-    mode: actionMode === "publish" ? "publish" : "draft",
-    ...result,
-  };
-}
-
 const capabilityHandlers = {
   file_read_text: fileReadText,
+  read_text_file: fileReadText,
   file_write_text: fileWriteText,
+  write_file: fileWriteText,
   file_list_directory: fileListDirectory,
+  list_directory: fileListDirectory,
   office_read_document: officeReadDocument,
   office_write_document: officeWriteDocument,
   browser_playwright_run: browserPlaywrightRun,
-  social_publish_run: socialPublishRun,
 };
 
 const capabilityDefinitions = [
@@ -1010,10 +997,6 @@ const capabilityDefinitions = [
   {
     name: "browser_playwright_run",
     description: "Run browser automation steps through Playwright.",
-  },
-  {
-    name: "social_publish_run",
-    description: "Publish or save draft on xiaohongshu/douyin/wechat_mp via Playwright.",
   },
 ];
 
