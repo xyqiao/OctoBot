@@ -7,6 +7,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import type { MouseEvent } from "react";
 import type { ChatSession } from "../../types";
 
@@ -32,6 +33,8 @@ export default function ChatListItem({
   onHoverEnd,
   onMenuButtonClick,
 }: ChatListItemProps) {
+  const theme = useTheme();
+
   return (
     <Box
       className="nexus-chat-list-item"
@@ -49,7 +52,7 @@ export default function ChatListItem({
           borderRadius: 1.6,
           py: 1.05,
           pr: 5.5,
-          backgroundColor: selected ? "#edf2fb" : "transparent",
+          backgroundColor: selected ? theme.appColors.sidebarSelected : "transparent",
         }}
       >
         <ListItemIcon sx={{ minWidth: 38 }}>
@@ -63,7 +66,7 @@ export default function ChatListItem({
             title: chat.title,
             fontSize: 30 / 2.3,
             fontWeight: selected ? 700 : 500,
-            color: selected ? "#1573e6" : "inherit",
+            color: selected ? theme.palette.primary.main : "inherit",
           }}
         />
       </ListItemButton>

@@ -16,6 +16,7 @@ import {
   Switch,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   disableSkill,
@@ -43,6 +44,7 @@ function SkillCard(props: {
   onInstall: (skillId: string) => void;
   onToggleEnabled: (skill: SkillDescriptor, checked: boolean) => void;
 }) {
+  const theme = useTheme();
   const { skill, pending, onInstall, onToggleEnabled } = props;
   const installed = skill.installStatus === "installed";
   const iconSrc = toFileUrl(skill.iconPath);
@@ -51,9 +53,9 @@ function SkillCard(props: {
     <Card
       elevation={0}
       sx={{
-        border: "1px solid #d8e1ef",
+        border: `1px solid ${theme.appColors.border}`,
         borderRadius: 2,
-        backgroundColor: "#fbfdff",
+        backgroundColor: theme.appColors.panelAlt,
       }}
     >
       <CardContent sx={{ p: 2 }}>
@@ -61,7 +63,7 @@ function SkillCard(props: {
           <Stack direction="row" spacing={1.2} alignItems="center">
             <Avatar
               src={iconSrc}
-              sx={{ width: 42, height: 42, bgcolor: "#1573e6", fontSize: 16 }}
+              sx={{ width: 42, height: 42, bgcolor: theme.appColors.avatarSolid, fontSize: 16 }}
             >
               {skill.displayName.slice(0, 1).toUpperCase()}
             </Avatar>
@@ -71,7 +73,7 @@ function SkillCard(props: {
               </Typography>
               <Typography
                 sx={{
-                  color: "#6e7f9b",
+                  color: theme.appColors.textMuted,
                   fontSize: 12,
                   textOverflow: "ellipsis",
                   overflow: "hidden",
@@ -86,7 +88,7 @@ function SkillCard(props: {
           <Typography
             sx={{
               minHeight: 40,
-              color: "#4b5f82",
+              color: theme.palette.text.secondary,
               fontSize: 13,
               lineHeight: 1.45,
             }}
@@ -129,6 +131,7 @@ function SkillCard(props: {
 }
 
 export default function SkillsPage() {
+  const theme = useTheme();
   const [skills, setSkills] = useState<SkillDescriptor[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionPendingId, setActionPendingId] = useState("");
@@ -288,7 +291,7 @@ export default function SkillsPage() {
         <Box>
           <Typography sx={{ fontWeight: 700, mb: 1.2 }}>已安装技能</Typography>
           {installedSkills.length === 0 ? (
-            <Typography sx={{ color: "#6e809e", fontSize: 14 }}>
+            <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
               暂无已安装技能。
             </Typography>
           ) : (
@@ -317,7 +320,7 @@ export default function SkillsPage() {
         <Box>
           <Typography sx={{ fontWeight: 700, mb: 1.2 }}>未安装技能</Typography>
           {uninstalledSkills.length === 0 ? (
-            <Typography sx={{ color: "#6e809e", fontSize: 14 }}>
+            <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
               暂无可安装技能。
             </Typography>
           ) : (

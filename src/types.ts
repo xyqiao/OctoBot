@@ -28,6 +28,8 @@ export interface AgentTask {
   subtitle?: string;
 }
 
+export type ThemeMode = "light" | "dark";
+
 export interface UserSettings {
   id: "user-settings";
   displayName: string;
@@ -36,6 +38,7 @@ export interface UserSettings {
   modelName: string;
   baseUrl: string;
   apiKey: string;
+  themeMode: ThemeMode;
   desktopNotifications: boolean;
   developerLogging: boolean;
   dataTelemetry: boolean;

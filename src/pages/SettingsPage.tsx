@@ -1,4 +1,9 @@
 import { useEffect, useState } from "react";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import {
   Avatar,
   Box,
@@ -11,13 +16,14 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
-import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import { useTheme } from "@mui/material/styles";
 import { getSettings, saveSettings } from "../utils/db";
+import { useAppThemeMode } from "../theme";
 import type { UserSettings } from "../types";
 
 export default function SettingsPage() {
+  const theme = useTheme();
+  const { setMode } = useAppThemeMode();
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +50,7 @@ export default function SettingsPage() {
 
     try {
       await saveSettings(settings);
+      setMode(settings.themeMode);
       const latest = await getSettings();
       setSettings(latest);
 
@@ -62,6 +69,7 @@ export default function SettingsPage() {
   async function restoreSettings() {
     const next = await getSettings();
     setSettings(next);
+    setMode(next.themeMode);
   }
 
   if (loading || !settings) {
@@ -82,6 +90,12 @@ export default function SettingsPage() {
     });
   };
 
+  const sectionSx = {
+    p: 3,
+    border: `1px solid ${theme.appColors.border}`,
+    backgroundColor: theme.appColors.panelAlt,
+  };
+
   return (
     <Box sx={{ p: 3.4, overflowY: "auto", height: "100%" }}>
       <Stack spacing={2.6} sx={{ maxWidth: 1120, mx: "auto" }}>
@@ -91,28 +105,22 @@ export default function SettingsPage() {
           </Typography>
         </Box>
 
-        <Paper
-          elevation={0}
-          sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}
-        >
-          <Stack
-            direction="row"
-            spacing={1.2}
-            alignItems="center"
-            sx={{ mb: 2.2 }}
-          >
+        <Paper elevation={0} sx={sectionSx}>
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 2.2 }}>
             <PersonOutlineRoundedIcon color="primary" />
-            <Typography
-              variant="h5"
-              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
-            >
+            <Typography variant="h5" sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}>
               账户信息
             </Typography>
           </Stack>
 
           <Stack direction="row" spacing={2.2}>
             <Avatar
-              sx={{ width: 90, height: 90, bgcolor: "#3f92f7", fontSize: 42 }}
+              sx={{
+                width: 90,
+                height: 90,
+                bgcolor: theme.appColors.avatarSolid,
+                fontSize: 42,
+              }}
             >
               {settings.displayName.slice(0, 2).toUpperCase()}
             </Avatar>
@@ -122,9 +130,7 @@ export default function SettingsPage() {
                   label="Display Name"
                   value={settings.displayName}
                   fullWidth
-                  onChange={(event) =>
-                    update("displayName", event.target.value)
-                  }
+                  onChange={(event) => update("displayName", event.target.value)}
                 />
                 <TextField
                   label="Email Address"
@@ -143,21 +149,10 @@ export default function SettingsPage() {
           </Stack>
         </Paper>
 
-        <Paper
-          elevation={0}
-          sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}
-        >
-          <Stack
-            direction="row"
-            spacing={1.2}
-            alignItems="center"
-            sx={{ mb: 1.8 }}
-          >
+        <Paper elevation={0} sx={sectionSx}>
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 1.8 }}>
             <KeyRoundedIcon color="primary" />
-            <Typography
-              variant="h5"
-              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
-            >
+            <Typography variant="h5" sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}>
               模型配置
             </Typography>
           </Stack>
@@ -191,33 +186,44 @@ export default function SettingsPage() {
           </Stack>
         </Paper>
 
-        <Paper
-          elevation={0}
-          sx={{ p: 3, border: "1px solid #dbe4f2", backgroundColor: "#f9fcff" }}
-        >
-          <Stack
-            direction="row"
-            spacing={1.2}
-            alignItems="center"
-            sx={{ mb: 1.8 }}
-          >
+        <Paper elevation={0} sx={sectionSx}>
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 1.8 }}>
             <ShieldOutlinedIcon color="primary" />
-            <Typography
-              variant="h5"
-              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
-            >
+            <Typography variant="h5" sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}>
               系统偏好设置
             </Typography>
           </Stack>
 
-          <Stack>
+          <Stack spacing={0.2}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={settings.themeMode === "dark"}
+                  onChange={(_event, checked) => {
+                    const nextMode = checked ? "dark" : "light";
+                    update("themeMode", nextMode);
+                    setMode(nextMode);
+                  }}
+                />
+              }
+              label={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {settings.themeMode === "dark" ? (
+                    <DarkModeRoundedIcon fontSize="small" color="primary" />
+                  ) : (
+                    <LightModeRoundedIcon fontSize="small" color="primary" />
+                  )}
+                  <Typography>
+                    {settings.themeMode === "dark" ? "深色模式" : "浅色模式"}
+                  </Typography>
+                </Stack>
+              }
+            />
             <FormControlLabel
               control={
                 <Switch
                   checked={settings.desktopNotifications}
-                  onChange={(_event, checked) =>
-                    update("desktopNotifications", checked)
-                  }
+                  onChange={(_event, checked) => update("desktopNotifications", checked)}
                 />
               }
               label="允许桌面通知"
@@ -226,9 +232,7 @@ export default function SettingsPage() {
               control={
                 <Switch
                   checked={settings.developerLogging}
-                  onChange={(_event, checked) =>
-                    update("developerLogging", checked)
-                  }
+                  onChange={(_event, checked) => update("developerLogging", checked)}
                 />
               }
               label="开发者日志模式"
@@ -237,9 +241,7 @@ export default function SettingsPage() {
               control={
                 <Switch
                   checked={settings.dataTelemetry}
-                  onChange={(_event, checked) =>
-                    update("dataTelemetry", checked)
-                  }
+                  onChange={(_event, checked) => update("dataTelemetry", checked)}
                 />
               }
               label="数据遥测 (帮助提高模型准确性)"
@@ -251,26 +253,14 @@ export default function SettingsPage() {
           <Button
             variant="outlined"
             onClick={() => void restoreSettings()}
-            sx={{
-              textTransform: "none",
-              px: 3.4,
-              py: 1.3,
-              borderRadius: 1.5,
-              fontWeight: 700,
-            }}
+            sx={{ textTransform: "none", px: 3.4, py: 1.3, borderRadius: 1.5, fontWeight: 700 }}
           >
             还原
           </Button>
           <Button
             variant="contained"
             onClick={() => void persistSettings()}
-            sx={{
-              textTransform: "none",
-              px: 3.4,
-              py: 1.3,
-              borderRadius: 1.5,
-              fontWeight: 700,
-            }}
+            sx={{ textTransform: "none", px: 3.4, py: 1.3, borderRadius: 1.5, fontWeight: 700 }}
           >
             保存
           </Button>

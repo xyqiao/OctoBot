@@ -7,6 +7,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import type { NavView } from "../../types";
 
 type SidebarNavListProps = {
@@ -20,6 +21,8 @@ export default function SidebarNavList({
   onSelectView,
   onCreateChat,
 }: SidebarNavListProps) {
+  const theme = useTheme();
+
   return (
     <List sx={{ py: 0 }}>
       <ListItemButton
@@ -47,7 +50,7 @@ export default function SidebarNavList({
           borderRadius: 1.6,
           mb: 0.5,
           py: 1.05,
-          backgroundColor: view === "tasks" ? "#edf2fb" : "transparent",
+          backgroundColor: view === "tasks" ? theme.appColors.sidebarSelected : "transparent",
         }}
       >
         <ListItemIcon sx={{ minWidth: 38 }}>
@@ -64,7 +67,7 @@ export default function SidebarNavList({
         sx={{
           borderRadius: 1.6,
           py: 1.05,
-          backgroundColor: view === "skills" ? "#edf2fb" : "transparent",
+          backgroundColor: view === "skills" ? theme.appColors.sidebarSelected : "transparent",
         }}
       >
         <ListItemIcon sx={{ minWidth: 38 }}>

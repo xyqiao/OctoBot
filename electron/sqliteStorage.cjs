@@ -10,6 +10,7 @@ const defaultSettings = {
   modelName: "gpt-4o-mini",
   baseUrl: "",
   apiKey: "",
+  themeMode: "light",
   desktopNotifications: true,
   developerLogging: false,
   dataTelemetry: true,
@@ -139,6 +140,7 @@ function toSettings(row) {
     modelName: row.model_name || defaultSettings.modelName,
     baseUrl: row.base_url || "",
     apiKey: row.api_key || "",
+    themeMode: row.theme_mode === "dark" ? "dark" : "light",
     desktopNotifications: Boolean(row.desktop_notifications),
     developerLogging: Boolean(row.developer_logging),
     dataTelemetry: Boolean(row.data_telemetry),
@@ -486,6 +488,7 @@ function ensureSchema(db) {
       model_name TEXT NOT NULL,
       base_url TEXT NOT NULL,
       api_key TEXT NOT NULL,
+      theme_mode TEXT NOT NULL,
       desktop_notifications INTEGER NOT NULL,
       developer_logging INTEGER NOT NULL,
       data_telemetry INTEGER NOT NULL
@@ -504,6 +507,7 @@ function ensureSchema(db) {
     "model_name",
     "base_url",
     "api_key",
+    "theme_mode",
     "desktop_notifications",
     "developer_logging",
     "data_telemetry",
@@ -525,6 +529,7 @@ function ensureSchema(db) {
         model_name TEXT NOT NULL,
         base_url TEXT NOT NULL,
         api_key TEXT NOT NULL,
+        theme_mode TEXT NOT NULL,
         desktop_notifications INTEGER NOT NULL,
         developer_logging INTEGER NOT NULL,
         data_telemetry INTEGER NOT NULL
@@ -815,10 +820,10 @@ function createStorage(userDataDir) {
     upsertSettings: db.prepare(
       `INSERT INTO settings (
          id, display_name, email, role, model_name, base_url, api_key,
-         desktop_notifications, developer_logging, data_telemetry
+         theme_mode, desktop_notifications, developer_logging, data_telemetry
        ) VALUES (
          @id, @displayName, @email, @role, @modelName, @baseUrl, @apiKey,
-         @desktopNotifications, @developerLogging, @dataTelemetry
+         @themeMode, @desktopNotifications, @developerLogging, @dataTelemetry
        )
        ON CONFLICT(id) DO UPDATE SET
          display_name = excluded.display_name,
@@ -827,6 +832,7 @@ function createStorage(userDataDir) {
          model_name = excluded.model_name,
          base_url = excluded.base_url,
          api_key = excluded.api_key,
+         theme_mode = excluded.theme_mode,
          desktop_notifications = excluded.desktop_notifications,
          developer_logging = excluded.developer_logging,
          data_telemetry = excluded.data_telemetry`,
@@ -950,6 +956,7 @@ function createStorage(userDataDir) {
       if (!settings) {
         queries.upsertSettings.run({
           ...defaultSettings,
+          themeMode: defaultSettings.themeMode,
           desktopNotifications: Number(defaultSettings.desktopNotifications),
           developerLogging: Number(defaultSettings.developerLogging),
           dataTelemetry: Number(defaultSettings.dataTelemetry),
@@ -1584,6 +1591,7 @@ function createStorage(userDataDir) {
       ...defaultSettings,
       ...settings,
       modelName: String(settings.modelName || defaultSettings.modelName),
+      themeMode: settings.themeMode === "dark" ? "dark" : "light",
       baseUrl: String(settings.baseUrl || ""),
       apiKey: String(settings.apiKey || ""),
     };

@@ -19,6 +19,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
@@ -111,6 +112,7 @@ function toDatetimeLocalValue(timestamp: number) {
 }
 
 export default function TasksPage() {
+  const theme = useTheme();
   const [tasks, setTasks] = useState<TaskDefinition[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [runs, setRuns] = useState<TaskRun[]>([]);
@@ -441,25 +443,25 @@ export default function TasksPage() {
         elevation={0}
         sx={{
           width: 420,
-          borderRight: "1px solid #d8e1ef",
+          borderRight: `1px solid ${theme.appColors.border}`,
           borderRadius: 0,
           display: "flex",
           flexDirection: "column",
-          backgroundColor: "#f7faff",
+          backgroundColor: theme.appColors.panelAlt,
         }}
       >
         <Stack
           direction="row"
           alignItems="center"
           justifyContent="space-between"
-          sx={{ p: 2.8, borderBottom: "1px solid #d8e1ef" }}
+          sx={{ p: 2.8, borderBottom: `1px solid ${theme.appColors.border}` }}
         >
           <Typography variant="h5" sx={{ fontSize: 36, fontWeight: 700 }}>
             Task Management
           </Typography>
           <IconButton
             color="primary"
-            sx={{ border: "1px solid #c3d8f7", borderRadius: 1.6 }}
+            sx={{ border: `1px solid ${theme.appColors.borderStrong}`, borderRadius: 1.6 }}
             onClick={openCreateDialog}
             disabled={actionPending}
           >
@@ -478,13 +480,13 @@ export default function TasksPage() {
                   borderRadius: 2.2,
                   border:
                     selectedTaskId === task.id
-                      ? "2px solid #1978ea"
-                      : "1px solid #d7e1f1",
+                      ? `2px solid ${theme.palette.primary.main}`
+                      : `1px solid ${theme.appColors.border}`,
                   backgroundColor:
-                    selectedTaskId === task.id ? "#f2f8ff" : "#fbfdff",
+                    selectedTaskId === task.id ? theme.appColors.panelSoft : theme.appColors.panelAlt,
                   boxShadow:
                     selectedTaskId === task.id
-                      ? "0 2px 12px rgba(42, 122, 238, 0.08)"
+                      ? `0 2px 12px ${theme.appColors.overlay}`
                       : "none",
                 }}
               >
@@ -502,7 +504,7 @@ export default function TasksPage() {
                       <MoreVertRoundedIcon fontSize="small" />
                     </IconButton>
                   </Stack>
-                  <Typography sx={{ color: "#6e7f9b", fontSize: 14, mt: 0.6 }}>
+                  <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14, mt: 0.6 }}>
                     {describeSchedule(task)}
                   </Typography>
                   <Stack
@@ -521,7 +523,7 @@ export default function TasksPage() {
                           : "outlined"
                       }
                     />
-                    <Typography sx={{ color: "#6e7f9b", fontSize: 15 }}>
+                    <Typography sx={{ color: theme.appColors.textMuted, fontSize: 15 }}>
                       {formatRelative(task.updatedAt)}
                     </Typography>
                   </Stack>
@@ -546,7 +548,7 @@ export default function TasksPage() {
                 />
                 {refreshing && <CircularProgress size={16} />}
               </Stack>
-              <Typography sx={{ mt: 0.8, color: "#6e809e", fontSize: 34 / 2.5 }}>
+              <Typography sx={{ mt: 0.8, color: theme.appColors.textMuted, fontSize: 34 / 2.5 }}>
                 {describeSchedule(activeTask)}
               </Typography>
             </Box>
@@ -676,7 +678,7 @@ export default function TasksPage() {
                   {activeRun?.progress ?? 0}%
                 </Typography>
               </Stack>
-              <Typography sx={{ color: "#6a7c99", mb: 1, fontSize: 32 / 2.4 }}>
+              <Typography sx={{ color: theme.appColors.textMuted, mb: 1, fontSize: 32 / 2.4 }}>
                 {activeRun
                   ? `Current run status: ${activeRun.status.toUpperCase()}`
                   : "No run selected."}
@@ -687,7 +689,7 @@ export default function TasksPage() {
                 sx={{
                   height: 9,
                   borderRadius: 999,
-                  backgroundColor: "#b9d4f8",
+                  backgroundColor: theme.appColors.borderStrong,
                   "& .MuiLinearProgress-bar": {
                     borderRadius: 999,
                   },
@@ -717,10 +719,10 @@ export default function TasksPage() {
                     onClick={() => setSelectedRunId(run.id)}
                     sx={{
                       p: 1.5,
-                      border: selectedRunId === run.id ? "2px solid #1978ea" : "1px solid #d7e1f1",
+                      border: selectedRunId === run.id ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.appColors.border}`,
                       borderRadius: 1.4,
                       cursor: "pointer",
-                      backgroundColor: selectedRunId === run.id ? "#f2f8ff" : "#ffffff",
+                      backgroundColor: selectedRunId === run.id ? theme.appColors.panelSoft : theme.appColors.panel,
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" spacing={1}>
@@ -733,10 +735,10 @@ export default function TasksPage() {
                         color={runChipColor(run.status)}
                       />
                     </Stack>
-                    <Typography sx={{ color: "#6a7c99", fontSize: 13, mt: 0.5 }}>
+                    <Typography sx={{ color: theme.appColors.textMuted, fontSize: 13, mt: 0.5 }}>
                       Trigger: {run.triggerType} · Queued: {formatTimestamp(run.queuedAt)}
                     </Typography>
-                    <Typography sx={{ color: "#6a7c99", fontSize: 13, mt: 0.2 }}>
+                    <Typography sx={{ color: theme.appColors.textMuted, fontSize: 13, mt: 0.2 }}>
                       Started: {formatTimestamp(run.startedAt)} · Ended: {formatTimestamp(run.endedAt)}
                     </Typography>
                   </Paper>
@@ -757,9 +759,9 @@ export default function TasksPage() {
               elevation={0}
               sx={{
                 borderRadius: 2.3,
-                border: "1px solid #0e1d3f",
-                backgroundColor: "#051537",
-                color: "#29c3ff",
+                border: `1px solid ${theme.appColors.consoleBorder}`,
+                backgroundColor: theme.appColors.consoleBg,
+                color: theme.appColors.consoleText,
                 px: 2.8,
                 py: 2.5,
                 minHeight: 300,

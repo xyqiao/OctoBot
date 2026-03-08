@@ -13,6 +13,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import type { ChatSession, NavView } from "./types";
 import {
   bootstrapData,
@@ -27,24 +28,8 @@ import TasksPage from "./pages/TasksPage";
 import SettingsPage from "./pages/SettingsPage";
 import AppSidebar from "./components/AppSidebar";
 
-const baseShellStyle = {
-  height: "100vh",
-  width: "100%",
-  p: 0,
-  backgroundColor: "#eef2f8",
-};
-
-const workspaceStyle = {
-  flex: 1,
-  borderRadius: 0,
-  backgroundColor: "#f2f5fb",
-  minWidth: 0,
-  overflow: "hidden",
-  display: "flex",
-  flexDirection: "column",
-};
-
 export default function App() {
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<NavView>("chat");
 
@@ -164,7 +149,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <Box sx={{ ...baseShellStyle, display: "grid", placeItems: "center" }}>
+      <Box sx={{ height: "100vh", width: "100%", p: 0, backgroundColor: theme.appColors.shell, display: "grid", placeItems: "center" }}>
         <Stack direction="row" spacing={2} alignItems="center">
           <CircularProgress size={28} />
           <Typography>Loading Nexus AI workspace...</Typography>
@@ -174,7 +159,7 @@ export default function App() {
   }
 
   return (
-    <Box sx={baseShellStyle}>
+    <Box sx={{ height: "100vh", width: "100%", p: 0, backgroundColor: theme.appColors.shell }}>
       <Paper
         elevation={0}
         sx={{
@@ -199,7 +184,7 @@ export default function App() {
             onDeleteChat={handleDeleteOpen}
           />
 
-          <Paper elevation={0} sx={workspaceStyle}>
+          <Paper elevation={0} sx={{ flex: 1, borderRadius: 0, backgroundColor: theme.appColors.shellElevated, minWidth: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             {view === "chat" && (
               <ChatPage
                 key={selectedChatId || "no-chat"}

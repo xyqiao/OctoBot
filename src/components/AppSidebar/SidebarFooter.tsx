@@ -1,5 +1,6 @@
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import type { NavView } from "../../types";
 
 type SidebarFooterProps = {
@@ -8,6 +9,8 @@ type SidebarFooterProps = {
 };
 
 export default function SidebarFooter({ view, onSelectView }: SidebarFooterProps) {
+  const theme = useTheme();
+
   return (
     <List sx={{ py: 0, mt: "auto" }}>
       <ListItemButton
@@ -18,9 +21,9 @@ export default function SidebarFooter({ view, onSelectView }: SidebarFooterProps
           py: 1.2,
           border:
             view === "settings"
-              ? "1px solid #9dc4fb"
+              ? `1px solid ${theme.appColors.borderStrong}`
               : "1px solid transparent",
-          backgroundColor: view === "settings" ? "#edf4ff" : "transparent",
+          backgroundColor: view === "settings" ? theme.appColors.sidebarSelected : "transparent",
         }}
       >
         <ListItemIcon sx={{ minWidth: 38 }}>
@@ -31,7 +34,7 @@ export default function SidebarFooter({ view, onSelectView }: SidebarFooterProps
           primaryTypographyProps={{
             fontSize: 30 / 2.3,
             fontWeight: view === "settings" ? 700 : 500,
-            color: view === "settings" ? "#1573e6" : "inherit",
+            color: view === "settings" ? theme.palette.primary.main : "inherit",
           }}
         />
       </ListItemButton>

@@ -5,6 +5,7 @@ import {
   Paper,
   Popper,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import type { ChatSession } from "../../types";
 
 type ChatItemMenuProps = {
@@ -24,6 +25,8 @@ export default function ChatItemMenu({
   onRenameChat,
   onDeleteChat,
 }: ChatItemMenuProps) {
+  const theme = useTheme();
+
   return (
     <Popper
       anchorEl={anchorEl}
@@ -40,7 +43,7 @@ export default function ChatItemMenu({
             mt: 0.4,
             borderRadius: 0.8,
             overflow: "hidden",
-            border: "1px solid #d7e1f1",
+            border: `1px solid ${theme.appColors.border}`,
           }}
         >
           <MenuList dense onClick={(event) => event.stopPropagation()}>

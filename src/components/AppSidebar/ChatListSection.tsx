@@ -1,4 +1,5 @@
 import { List, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 import type { ChatSession, NavView } from "../../types";
@@ -24,6 +25,7 @@ export default function ChatListSection({
   onRenameChat,
   onDeleteChat,
 }: ChatListSectionProps) {
+  const theme = useTheme();
   const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [menuChatId, setMenuChatId] = useState("");
   const [hoveredChatId, setHoveredChatId] = useState("");
@@ -53,7 +55,7 @@ export default function ChatListSection({
 
   return (
     <>
-      <Typography sx={{ fontWeight: 700, color: "#6b7b97", fontSize: 15, mb: 1.1 }}>
+      <Typography sx={{ fontWeight: 700, color: theme.appColors.textMuted, fontSize: 15, mb: 1.1 }}>
         对话记录
       </Typography>
       <List sx={{ py: 0, flex: 1 }}>

@@ -114,6 +114,7 @@ interface DesktopUserSettings {
   modelName: string;
   baseUrl: string;
   apiKey: string;
+  themeMode: "light" | "dark";
   desktopNotifications: boolean;
   developerLogging: boolean;
   dataTelemetry: boolean;

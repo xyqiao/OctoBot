@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import AssistantChatPanel from "../components/AssistantChatPanel";
 import { getChatMessages, getSettings } from "../utils/db";
 import type { ChatMessage, ChatSession, UserSettings } from "../types";
@@ -11,6 +12,7 @@ type ChatPageProps = {
 };
 
 export default function ChatPage({ activeChat, selectedChatId, onChatsChanged }: ChatPageProps) {
+  const theme = useTheme();
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messagesReady, setMessagesReady] = useState(false);
@@ -65,14 +67,14 @@ export default function ChatPage({ activeChat, selectedChatId, onChatsChanged }:
 
   return (
     <Stack sx={{ height: "100%" }}>
-      <Box sx={{ backgroundColor: "#f8fbff", textAlign: "center", py: 1, borderBottom: "1px solid #d8e1ef" }}>
+      <Box sx={{ backgroundColor: theme.appColors.assistantBubble, textAlign: "center", py: 1, borderBottom: `1px solid ${theme.appColors.border}` }}>
         <Typography variant="h4" sx={{ fontSize: 16, fontWeight: 600, lineHeight: 1.2 }}>
           {activeChat?.title}
         </Typography>
-        <Typography sx={{ fontSize: 12, color: "#667a99", mt: 0.5 }}>内容由AI生成</Typography>
+        <Typography sx={{ fontSize: 12, color: theme.appColors.textMuted, mt: 0.5 }}>内容由AI生成</Typography>
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, backgroundColor: "#eef2f8" }}>
+      <Box sx={{ flex: 1, minHeight: 0, backgroundColor: theme.appColors.shell }}>
         {!settings ? (
           <Box sx={{ display: "grid", placeItems: "center", height: "100%" }}>
             <CircularProgress size={28} />
@@ -83,7 +85,7 @@ export default function ChatPage({ activeChat, selectedChatId, onChatsChanged }:
               className="nexus-chat-shell"
               sx={{
                 height: "100%",
-                backgroundColor: "#f5f8ff",
+                backgroundColor: theme.appColors.panelSoft,
               }}
             >
               <AssistantChatPanel

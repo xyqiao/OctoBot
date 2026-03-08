@@ -17,7 +17,7 @@ export default function AppSidebar({
   onDeleteChat,
 }: AppSidebarProps) {
   return (
-    <Paper elevation={0} sx={sidebarStyle}>
+    <Paper elevation={0} sx={(theme) => sidebarStyle(theme)}>
       <SidebarHeader />
       <SidebarNavList
         view={view}
