@@ -83,6 +83,10 @@ export function useChatModelAdapter({
               };
             }
 
+            if (event.type === "log") {
+              console.info(`[agent-chat] ${event.log}`);
+            }
+
             if (event.type === "error") {
               throw new Error(event.error || "Unknown stream error");
             }

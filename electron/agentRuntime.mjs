@@ -9,8 +9,12 @@ const TOOL_AWARE_SYSTEM_PROMPT = [
   "你是桌面端智能体。",
   "你可以调用本地工具执行文件读写、办公文档处理，以及基于 Playwright MCP 的浏览器自动化。",
   "当任务需要真实操作时，优先调用工具，不要只停留在建议层。",
+  "如果同一类操作连续失败两次、工具不可用、或明显需要用户介入，立即停止自动重试，直接说明当前进展、阻塞原因和下一步建议。",
+  "不要为了完成任务而无限循环调用工具；信息已经足够时，直接给出最终答复。",
   "输出使用简洁 Markdown，先给结论，再给关键细节。",
 ].join("\n");
+
+const AGENT_RECURSION_LIMIT = 50;
 
 const SKILL_TOOL_NAME_MAP = {
   office_read_document: "office_read_document",
@@ -76,6 +80,11 @@ function summarizeJson(value, maxLen = 240) {
 function pushLog(logs, onLog, text) {
   logs.push(text);
   onLog?.(text);
+}
+
+function isGraphRecursionLimitError(error) {
+  const message = toText(error?.message || error);
+  return message.includes("Recursion limit") && message.includes("stop condition");
 }
 
 function normalizeText(value) {
@@ -282,7 +291,7 @@ function buildSkillPromptPatch(selectedSkills = []) {
   return [
     "你当前必须遵循以下已匹配技能规范：",
     ...sections,
-    "执行要求：严格按技能步骤执行；工具调用优先使用技能列出的依赖工具；失败时按回退策略处理并说明。",
+    "执行要求：严格按技能步骤执行；工具调用优先使用技能列出的依赖工具；失败时按回退策略处理并说明；同一步骤连续失败两次后停止重试并汇报阻塞原因。",
   ].join("\n\n");
 }
 
@@ -486,42 +495,70 @@ async function runToolAwareAgent({
   let answer = "";
   let latestModelOutput = "";
 
-  const eventStream = agent.streamEvents(stateInput, {
-    signal,
-    version: "v2",
-  });
+  try {
+    const eventStream = agent.streamEvents(stateInput, {
+      signal,
+      version: "v2",
+      recursionLimit: AGENT_RECURSION_LIMIT,
+    });
 
-  for await (const event of eventStream) {
-    if (!event || typeof event !== "object") {
-      continue;
+    for await (const event of eventStream) {
+      if (!event || typeof event !== "object") {
+        continue;
+      }
+
+      if (event.event === "on_chat_model_stream") {
+        const delta = extractEventTextChunk(event);
+        if (delta) {
+          answer += delta;
+          onChunk?.(delta);
+        }
+        continue;
+      }
+
+      if (event.event === "on_chat_model_end") {
+        const finalText = extractEventFinalText(event);
+        if (finalText) {
+          latestModelOutput = finalText;
+        }
+        continue;
+      }
+
+      if (
+        event.event === "on_tool_start" ||
+        event.event === "on_tool_end" ||
+        event.event === "on_tool_error"
+      ) {
+        const logLine = buildToolEventLog(event);
+        if (logLine) {
+          pushLog(logs, onLog, logLine);
+        }
+      }
+    }
+  } catch (error) {
+    if (!isGraphRecursionLimitError(error)) {
+      throw error;
     }
 
-    if (event.event === "on_chat_model_stream") {
-      const delta = extractEventTextChunk(event);
-      if (delta) {
-        answer += delta;
-        onChunk?.(delta);
-      }
-      continue;
+    pushLog(
+      logs,
+      onLog,
+      `[WARN] 智能体达到最大推理步数（${AGENT_RECURSION_LIMIT}）后已停止自动重试。`,
+    );
+
+    if (!answer && latestModelOutput) {
+      answer = latestModelOutput;
     }
 
-    if (event.event === "on_chat_model_end") {
-      const finalText = extractEventFinalText(event);
-      if (finalText) {
-        latestModelOutput = finalText;
-      }
-      continue;
-    }
-
-    if (
-      event.event === "on_tool_start" ||
-      event.event === "on_tool_end" ||
-      event.event === "on_tool_error"
-    ) {
-      const logLine = buildToolEventLog(event);
-      if (logLine) {
-        pushLog(logs, onLog, logLine);
-      }
+    if (!answer) {
+      answer = [
+        "任务已停止自动重试。",
+        "",
+        `原因：智能体在 ${AGENT_RECURSION_LIMIT} 步内没有收敛到最终结果。`,
+        "常见原因包括工具连续失败、页面状态不满足，或当前步骤需要人工介入。",
+        "请根据上面的工具日志检查阻塞点后重试。",
+      ].join("\n");
+      onChunk?.(answer);
     }
   }
 
@@ -531,10 +568,35 @@ async function runToolAwareAgent({
   }
 
   if (!answer) {
-    const result = await agent.invoke(stateInput, { signal });
-    answer = extractAssistantAnswer(result?.messages || []);
-    if (answer) {
-      onChunk?.(answer);
+    try {
+      const result = await agent.invoke(stateInput, {
+        signal,
+        recursionLimit: AGENT_RECURSION_LIMIT,
+      });
+      answer = extractAssistantAnswer(result?.messages || []);
+      if (answer) {
+        onChunk?.(answer);
+      }
+    } catch (error) {
+      if (!isGraphRecursionLimitError(error)) {
+        throw error;
+      }
+
+      pushLog(
+        logs,
+        onLog,
+        `[WARN] 智能体在回退调用阶段达到最大推理步数（${AGENT_RECURSION_LIMIT}）。`,
+      );
+
+      if (!answer) {
+        answer = [
+          "任务已停止自动重试。",
+          "",
+          `原因：智能体在 ${AGENT_RECURSION_LIMIT} 步内没有收敛到最终结果。`,
+          "请查看工具日志定位失败步骤，或缩小任务范围后重试。",
+        ].join("\n");
+        onChunk?.(answer);
+      }
     }
   }
 
