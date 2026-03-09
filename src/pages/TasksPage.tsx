@@ -107,7 +107,9 @@ function renderLogLine(log: TaskRunLog) {
 
 function toDatetimeLocalValue(timestamp: number) {
   const date = new Date(timestamp);
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  const localDate = new Date(
+    date.getTime() - date.getTimezoneOffset() * 60_000,
+  );
   return localDate.toISOString().slice(0, 16);
 }
 
@@ -124,8 +126,10 @@ export default function TasksPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createDescription, setCreateDescription] = useState("");
-  const [createTaskType, setCreateTaskType] = useState<TaskDefinition["taskType"]>("custom");
-  const [createScheduleType, setCreateScheduleType] = useState<TaskScheduleType>("manual");
+  const [createTaskType, setCreateTaskType] =
+    useState<TaskDefinition["taskType"]>("custom");
+  const [createScheduleType, setCreateScheduleType] =
+    useState<TaskScheduleType>("manual");
   const [createRunAt, setCreateRunAt] = useState(() =>
     toDatetimeLocalValue(Date.now() + 10 * 60_000),
   );
@@ -166,7 +170,10 @@ export default function TasksPage() {
       if (!loaded.length) {
         return "";
       }
-      if (preferredTaskId && loaded.some((item) => item.id === preferredTaskId)) {
+      if (
+        preferredTaskId &&
+        loaded.some((item) => item.id === preferredTaskId)
+      ) {
         return preferredTaskId;
       }
       if (current && loaded.some((item) => item.id === current)) {
@@ -177,29 +184,35 @@ export default function TasksPage() {
     return loaded;
   }, []);
 
-  const loadRuns = useCallback(async (taskId: string, preferredRunId?: string) => {
-    if (!taskId) {
-      setRuns([]);
-      setSelectedRunId("");
-      return [];
-    }
+  const loadRuns = useCallback(
+    async (taskId: string, preferredRunId?: string) => {
+      if (!taskId) {
+        setRuns([]);
+        setSelectedRunId("");
+        return [];
+      }
 
-    const loadedRuns = await listTaskRuns(taskId, 120);
-    setRuns(loadedRuns);
-    setSelectedRunId((current) => {
-      if (!loadedRuns.length) {
-        return "";
-      }
-      if (preferredRunId && loadedRuns.some((item) => item.id === preferredRunId)) {
-        return preferredRunId;
-      }
-      if (current && loadedRuns.some((item) => item.id === current)) {
-        return current;
-      }
-      return loadedRuns[0].id;
-    });
-    return loadedRuns;
-  }, []);
+      const loadedRuns = await listTaskRuns(taskId, 120);
+      setRuns(loadedRuns);
+      setSelectedRunId((current) => {
+        if (!loadedRuns.length) {
+          return "";
+        }
+        if (
+          preferredRunId &&
+          loadedRuns.some((item) => item.id === preferredRunId)
+        ) {
+          return preferredRunId;
+        }
+        if (current && loadedRuns.some((item) => item.id === current)) {
+          return current;
+        }
+        return loadedRuns[0].id;
+      });
+      return loadedRuns;
+    },
+    [],
+  );
 
   const loadRunLogs = useCallback(async (runId: string) => {
     if (!runId) {
@@ -352,7 +365,8 @@ export default function TasksPage() {
         schedule: {
           type: createScheduleType,
           runAt,
-          cronExpr: createScheduleType === "cron" ? createCronExpr.trim() : undefined,
+          cronExpr:
+            createScheduleType === "cron" ? createCronExpr.trim() : undefined,
           timezone: createTimezone.trim() || "Asia/Shanghai",
         },
       });
@@ -419,10 +433,7 @@ export default function TasksPage() {
         runningRun.id,
         "Canceled by operator from task panel.",
       );
-      await refreshTaskPanel(
-        selectedTaskId,
-        result.run?.id ?? runningRun.id,
-      );
+      await refreshTaskPanel(selectedTaskId, result.run?.id ?? runningRun.id);
     } finally {
       setActionPending(false);
     }
@@ -439,177 +450,173 @@ export default function TasksPage() {
   return (
     <>
       <Stack direction="row" sx={{ height: "100%" }}>
-      <Paper
-        elevation={0}
-        sx={{
-          width: 420,
-          borderRight: `1px solid ${theme.appColors.border}`,
-          borderRadius: 0,
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: theme.appColors.panelAlt,
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ p: 2.8, borderBottom: `1px solid ${theme.appColors.border}` }}
+        <Paper
+          elevation={0}
+          sx={{
+            width: 420,
+            borderRight: `1px solid ${theme.appColors.border}`,
+            borderRadius: 0,
+            display: "flex",
+            flexDirection: "column",
+            backgroundColor: theme.appColors.panelAlt,
+          }}
         >
-          <Typography variant="h5" sx={{ fontSize: 36, fontWeight: 700 }}>
-            Task Management
-          </Typography>
-          <IconButton
-            color="primary"
-            sx={{ border: `1px solid ${theme.appColors.borderStrong}`, borderRadius: 1.6 }}
-            onClick={openCreateDialog}
-            disabled={actionPending}
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ p: 2.8, borderBottom: `1px solid ${theme.appColors.border}` }}
           >
-            <AddRoundedIcon />
-          </IconButton>
-        </Stack>
-
-        <Box sx={{ p: 2.2, overflowY: "auto" }}>
-          <Stack spacing={1.5}>
-            {tasks.map((task) => (
-              <Card
-                key={task.id}
-                onClick={() => setSelectedTaskId(task.id)}
-                sx={{
-                  cursor: "pointer",
-                  borderRadius: 2.2,
-                  border:
-                    selectedTaskId === task.id
-                      ? `1px solid ${theme.palette.primary.main}`
-                      : `1px solid ${theme.appColors.border}`,
-                  backgroundColor:
-                    selectedTaskId === task.id ? theme.appColors.panelSoft : theme.appColors.panelAlt,
-                  boxShadow:
-                    selectedTaskId === task.id
-                      ? `0 16px 32px ${theme.appColors.overlay}`
-                      : `0 8px 18px ${theme.appColors.overlay}`,
-                  transform: selectedTaskId === task.id ? "translateY(-1px)" : "none",
-                  transition: "background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease",
-                  '&:hover': {
-                    borderColor: selectedTaskId === task.id ? theme.palette.primary.main : theme.appColors.borderStrong,
-                    backgroundColor: theme.appColors.panelSoft,
-                    boxShadow: `0 14px 28px ${theme.appColors.overlay}`,
-                    transform: "translateY(-1px)",
-                  },
-                }}
-              >
-                <CardContent sx={{ p: 2.2, "&:last-child": { pb: 2.2 } }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="start"
-                    spacing={1}
-                  >
-                    <Typography sx={{ fontSize: 31 / 2.3, fontWeight: 700 }}>
-                      {task.title}
-                    </Typography>
-                    <IconButton size="small">
-                      <MoreVertRoundedIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                  <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14, mt: 0.6 }}>
-                    {describeSchedule(task)}
-                  </Typography>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{ mt: 1.2 }}
-                  >
-                    <Chip
-                      label={task.lifecycleStatus.toUpperCase()}
-                      color={lifecycleChipColor(task.lifecycleStatus)}
-                      size="small"
-                      variant={
-                        task.lifecycleStatus === "active"
-                          ? "filled"
-                          : "outlined"
-                      }
-                    />
-                    <Typography sx={{ color: theme.appColors.textMuted, fontSize: 15 }}>
-                      {formatRelative(task.updatedAt)}
-                    </Typography>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        </Box>
-      </Paper>
-
-      <Box sx={{ flex: 1, p: 3.2, overflowY: "auto" }}>
-        {activeTask ? (
-          <Stack spacing={3}>
-            <Box
+            <Typography variant="h5" sx={{ fontSize: 36, fontWeight: 700 }}>
+              任务
+            </Typography>
+            <IconButton
+              color="primary"
               sx={{
-                p: 2.2,
-                border: `1px solid ${theme.appColors.border}`,
-                borderRadius: 2.2,
-                backgroundColor: theme.appColors.panelAlt,
-                boxShadow: `0 12px 24px ${theme.appColors.overlay}`,
+                border: `1px solid ${theme.appColors.borderStrong}`,
+                borderRadius: 1.6,
               }}
+              onClick={openCreateDialog}
+              disabled={actionPending}
             >
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <Typography variant="h4" sx={{ fontSize: 53 / 2.3, fontWeight: 700, letterSpacing: "-0.02em" }}>
-                  {activeTask.title}
-                </Typography>
-                <Chip
-                  label={activeTask.lifecycleStatus.toUpperCase()}
-                  color={lifecycleChipColor(activeTask.lifecycleStatus)}
-                />
-                {refreshing && <CircularProgress size={16} />}
-              </Stack>
-              <Typography sx={{ mt: 0.9, color: theme.appColors.textMuted, fontSize: 13.5, letterSpacing: "0.01em" }}>
-                {describeSchedule(activeTask)}
-              </Typography>
-            </Box>
+              <AddRoundedIcon />
+            </IconButton>
+          </Stack>
 
-            <Stack direction="row" spacing={1.6} flexWrap="wrap">
-              <Button
-                variant="contained"
-                startIcon={<RefreshRoundedIcon />}
-                onClick={() => void handleRunNow()}
-                disabled={
-                  actionPending || activeTask.lifecycleStatus === "terminated"
-                }
-                sx={{
-                  textTransform: "none",
-                  borderRadius: 1.6,
-                  px: 2.2,
-                  py: 1.2,
-                  fontSize: 30 / 2.3,
-                  fontWeight: 700,
-                }}
-              >
-                Run Now
-              </Button>
-              {activeTask.lifecycleStatus === "paused" ? (
-                <Button
-                  variant="outlined"
-                  startIcon={<PlayCircleOutlineRoundedIcon />}
-                  onClick={() => void handleUpdateLifecycle("active")}
-                  disabled={actionPending}
+          <Box sx={{ p: 2.2, overflowY: "auto" }}>
+            <Stack spacing={1.5}>
+              {tasks.map((task) => (
+                <Card
+                  key={task.id}
+                  onClick={() => setSelectedTaskId(task.id)}
                   sx={{
-                    textTransform: "none",
-                    borderRadius: 1.6,
-                    px: 2.2,
-                    py: 1.2,
-                    fontSize: 30 / 2.3,
-                    fontWeight: 700,
+                    cursor: "pointer",
+                    borderRadius: 2.2,
+                    border:
+                      selectedTaskId === task.id
+                        ? `1px solid ${theme.palette.primary.main}`
+                        : `1px solid ${theme.appColors.border}`,
+                    backgroundColor:
+                      selectedTaskId === task.id
+                        ? theme.appColors.panelSoft
+                        : theme.appColors.panelAlt,
+                    boxShadow:
+                      selectedTaskId === task.id
+                        ? `0 16px 32px ${theme.appColors.overlay}`
+                        : `0 8px 18px ${theme.appColors.overlay}`,
+                    transform:
+                      selectedTaskId === task.id ? "translateY(-1px)" : "none",
+                    transition:
+                      "background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease",
+                    "&:hover": {
+                      borderColor:
+                        selectedTaskId === task.id
+                          ? theme.palette.primary.main
+                          : theme.appColors.borderStrong,
+                      backgroundColor: theme.appColors.panelSoft,
+                      boxShadow: `0 14px 28px ${theme.appColors.overlay}`,
+                      transform: "translateY(-1px)",
+                    },
                   }}
                 >
-                  Start
-                </Button>
-              ) : (
+                  <CardContent sx={{ p: 2.2, "&:last-child": { pb: 2.2 } }}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="start"
+                      spacing={1}
+                    >
+                      <Typography sx={{ fontSize: 31 / 2.3, fontWeight: 700 }}>
+                        {task.title}
+                      </Typography>
+                      <IconButton size="small">
+                        <MoreVertRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                    <Typography
+                      sx={{
+                        color: theme.appColors.textMuted,
+                        fontSize: 14,
+                        mt: 0.6,
+                      }}
+                    >
+                      {describeSchedule(task)}
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{ mt: 1.2 }}
+                    >
+                      <Chip
+                        label={task.lifecycleStatus.toUpperCase()}
+                        color={lifecycleChipColor(task.lifecycleStatus)}
+                        size="small"
+                        variant={
+                          task.lifecycleStatus === "active"
+                            ? "filled"
+                            : "outlined"
+                        }
+                      />
+                      <Typography
+                        sx={{ color: theme.appColors.textMuted, fontSize: 15 }}
+                      >
+                        {formatRelative(task.updatedAt)}
+                      </Typography>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          </Box>
+        </Paper>
+
+        <Box sx={{ flex: 1, p: 3.2, overflowY: "auto" }}>
+          {activeTask ? (
+            <Stack spacing={3}>
+              <Box
+                sx={{
+                  p: 2.2,
+                  border: `1px solid ${theme.appColors.border}`,
+                  borderRadius: 2.2,
+                  backgroundColor: theme.appColors.panelAlt,
+                  boxShadow: `0 12px 24px ${theme.appColors.overlay}`,
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontSize: 53 / 2.3,
+                      fontWeight: 700,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {activeTask.title}
+                  </Typography>
+                  <Chip
+                    label={activeTask.lifecycleStatus.toUpperCase()}
+                    color={lifecycleChipColor(activeTask.lifecycleStatus)}
+                  />
+                  {refreshing && <CircularProgress size={16} />}
+                </Stack>
+                <Typography
+                  sx={{
+                    mt: 0.9,
+                    color: theme.appColors.textMuted,
+                    fontSize: 13.5,
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {describeSchedule(activeTask)}
+                </Typography>
+              </Box>
+
+              <Stack direction="row" spacing={1.6} flexWrap="wrap">
                 <Button
-                  variant="outlined"
-                  startIcon={<PauseCircleOutlineRoundedIcon />}
-                  onClick={() => void handleUpdateLifecycle("paused")}
+                  variant="contained"
+                  startIcon={<RefreshRoundedIcon />}
+                  onClick={() => void handleRunNow()}
                   disabled={
                     actionPending || activeTask.lifecycleStatus === "terminated"
                   }
@@ -622,49 +629,68 @@ export default function TasksPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Pause
+                  Run Now
                 </Button>
-              )}
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<StopCircleOutlinedIcon />}
-                onClick={() => void handleUpdateLifecycle("terminated")}
-                disabled={
-                  actionPending || activeTask.lifecycleStatus === "terminated"
-                }
-                sx={{
-                  textTransform: "none",
-                  borderRadius: 1.6,
-                  px: 2.2,
-                  py: 1.2,
-                  fontSize: 30 / 2.3,
-                  fontWeight: 700,
-                }}
-              >
-                Terminate
-              </Button>
-              <Button
-                variant="text"
-                onClick={() => void refreshTaskPanel()}
-                disabled={actionPending}
-                sx={{
-                  textTransform: "none",
-                  borderRadius: 1.6,
-                  px: 1.6,
-                  py: 1.2,
-                  fontSize: 30 / 2.3,
-                  fontWeight: 700,
-                }}
-              >
-                Refresh
-              </Button>
-              {runningRun && (
+                {activeTask.lifecycleStatus === "paused" ? (
+                  <Button
+                    variant="outlined"
+                    startIcon={<PlayCircleOutlineRoundedIcon />}
+                    onClick={() => void handleUpdateLifecycle("active")}
+                    disabled={actionPending}
+                    sx={{
+                      textTransform: "none",
+                      borderRadius: 1.6,
+                      px: 2.2,
+                      py: 1.2,
+                      fontSize: 30 / 2.3,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Start
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    startIcon={<PauseCircleOutlineRoundedIcon />}
+                    onClick={() => void handleUpdateLifecycle("paused")}
+                    disabled={
+                      actionPending ||
+                      activeTask.lifecycleStatus === "terminated"
+                    }
+                    sx={{
+                      textTransform: "none",
+                      borderRadius: 1.6,
+                      px: 2.2,
+                      py: 1.2,
+                      fontSize: 30 / 2.3,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Pause
+                  </Button>
+                )}
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<StopCircleOutlinedIcon />}
+                  onClick={() => void handleUpdateLifecycle("terminated")}
+                  disabled={
+                    actionPending || activeTask.lifecycleStatus === "terminated"
+                  }
+                  sx={{
+                    textTransform: "none",
+                    borderRadius: 1.6,
+                    px: 2.2,
+                    py: 1.2,
+                    fontSize: 30 / 2.3,
+                    fontWeight: 700,
+                  }}
+                >
+                  Terminate
+                </Button>
                 <Button
                   variant="text"
-                  color="warning"
-                  startIcon={<CancelOutlinedIcon />}
-                  onClick={() => void handleCancelRun()}
+                  onClick={() => void refreshTaskPanel()}
                   disabled={actionPending}
                   sx={{
                     textTransform: "none",
@@ -675,138 +701,193 @@ export default function TasksPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Cancel Running
+                  Refresh
                 </Button>
-              )}
-            </Stack>
-
-            <Box>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 1.1 }}
-              >
-                <Typography sx={{ fontWeight: 700, fontSize: 36 / 2.4 }}>
-                  Execution Progress
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: 32 / 2.4 }}>
-                  {activeRun?.progress ?? 0}%
-                </Typography>
-              </Stack>
-              <Typography sx={{ color: theme.appColors.textMuted, mb: 1, fontSize: 32 / 2.4 }}>
-                {activeRun
-                  ? `Current run status: ${activeRun.status.toUpperCase()}`
-                  : "No run selected."}
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={activeRun?.progress ?? 0}
-                sx={{
-                  height: 9,
-                  borderRadius: 999,
-                  backgroundColor: theme.appColors.borderStrong,
-                  "& .MuiLinearProgress-bar": {
-                    borderRadius: 999,
-                  },
-                }}
-              />
-            </Box>
-
-            <Divider />
-
-            <Stack direction="row" spacing={1} alignItems="center">
-              <TaskAltRoundedIcon />
-              <Typography sx={{ fontWeight: 700, fontSize: 39 / 2.4 }}>
-                Run History
-              </Typography>
-            </Stack>
-
-            <Stack spacing={1.2}>
-              {runs.length === 0 ? (
-                <Typography color="text.secondary">
-                  No run history yet. Click `Run Now` to queue one.
-                </Typography>
-              ) : (
-                runs.map((run) => (
-                  <Paper
-                    key={run.id}
-                    elevation={0}
-                    onClick={() => setSelectedRunId(run.id)}
+                {runningRun && (
+                  <Button
+                    variant="text"
+                    color="warning"
+                    startIcon={<CancelOutlinedIcon />}
+                    onClick={() => void handleCancelRun()}
+                    disabled={actionPending}
                     sx={{
-                      p: 1.5,
-                      border: selectedRunId === run.id ? `1px solid ${theme.palette.primary.main}` : `1px solid ${theme.appColors.border}`,
+                      textTransform: "none",
                       borderRadius: 1.6,
-                      cursor: "pointer",
-                      backgroundColor: selectedRunId === run.id ? theme.appColors.panelSoft : theme.appColors.panel,
-                      boxShadow: selectedRunId === run.id ? `0 12px 24px ${theme.appColors.overlay}` : "none",
-                      transition: "background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease",
-                      '&:hover': {
-                        borderColor: selectedRunId === run.id ? theme.palette.primary.main : theme.appColors.borderStrong,
-                        backgroundColor: theme.appColors.panelSoft,
-                      },
+                      px: 1.6,
+                      py: 1.2,
+                      fontSize: 30 / 2.3,
+                      fontWeight: 700,
                     }}
                   >
-                    <Stack direction="row" justifyContent="space-between" spacing={1}>
-                      <Typography sx={{ fontWeight: 700 }}>
-                        {run.id}
+                    Cancel Running
+                  </Button>
+                )}
+              </Stack>
+
+              <Box>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  sx={{ mb: 1.1 }}
+                >
+                  <Typography sx={{ fontWeight: 700, fontSize: 36 / 2.4 }}>
+                    Execution Progress
+                  </Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: 32 / 2.4 }}>
+                    {activeRun?.progress ?? 0}%
+                  </Typography>
+                </Stack>
+                <Typography
+                  sx={{
+                    color: theme.appColors.textMuted,
+                    mb: 1,
+                    fontSize: 32 / 2.4,
+                  }}
+                >
+                  {activeRun
+                    ? `Current run status: ${activeRun.status.toUpperCase()}`
+                    : "No run selected."}
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={activeRun?.progress ?? 0}
+                  sx={{
+                    height: 9,
+                    borderRadius: 999,
+                    backgroundColor: theme.appColors.borderStrong,
+                    "& .MuiLinearProgress-bar": {
+                      borderRadius: 999,
+                    },
+                  }}
+                />
+              </Box>
+
+              <Divider />
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TaskAltRoundedIcon />
+                <Typography sx={{ fontWeight: 700, fontSize: 39 / 2.4 }}>
+                  Run History
+                </Typography>
+              </Stack>
+
+              <Stack spacing={1.2}>
+                {runs.length === 0 ? (
+                  <Typography color="text.secondary">
+                    No run history yet. Click `Run Now` to queue one.
+                  </Typography>
+                ) : (
+                  runs.map((run) => (
+                    <Paper
+                      key={run.id}
+                      elevation={0}
+                      onClick={() => setSelectedRunId(run.id)}
+                      sx={{
+                        p: 1.5,
+                        border:
+                          selectedRunId === run.id
+                            ? `1px solid ${theme.palette.primary.main}`
+                            : `1px solid ${theme.appColors.border}`,
+                        borderRadius: 1.6,
+                        cursor: "pointer",
+                        backgroundColor:
+                          selectedRunId === run.id
+                            ? theme.appColors.panelSoft
+                            : theme.appColors.panel,
+                        boxShadow:
+                          selectedRunId === run.id
+                            ? `0 12px 24px ${theme.appColors.overlay}`
+                            : "none",
+                        transition:
+                          "background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease",
+                        "&:hover": {
+                          borderColor:
+                            selectedRunId === run.id
+                              ? theme.palette.primary.main
+                              : theme.appColors.borderStrong,
+                          backgroundColor: theme.appColors.panelSoft,
+                        },
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={1}
+                      >
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {run.id}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={run.status.toUpperCase()}
+                          color={runChipColor(run.status)}
+                        />
+                      </Stack>
+                      <Typography
+                        sx={{
+                          color: theme.appColors.textMuted,
+                          fontSize: 13,
+                          mt: 0.5,
+                        }}
+                      >
+                        Trigger: {run.triggerType} · Queued:{" "}
+                        {formatTimestamp(run.queuedAt)}
                       </Typography>
-                      <Chip
-                        size="small"
-                        label={run.status.toUpperCase()}
-                        color={runChipColor(run.status)}
-                      />
-                    </Stack>
-                    <Typography sx={{ color: theme.appColors.textMuted, fontSize: 13, mt: 0.5 }}>
-                      Trigger: {run.triggerType} · Queued: {formatTimestamp(run.queuedAt)}
-                    </Typography>
-                    <Typography sx={{ color: theme.appColors.textMuted, fontSize: 13, mt: 0.2 }}>
-                      Started: {formatTimestamp(run.startedAt)} · Ended: {formatTimestamp(run.endedAt)}
-                    </Typography>
-                  </Paper>
-                ))
-              )}
+                      <Typography
+                        sx={{
+                          color: theme.appColors.textMuted,
+                          fontSize: 13,
+                          mt: 0.2,
+                        }}
+                      >
+                        Started: {formatTimestamp(run.startedAt)} · Ended:{" "}
+                        {formatTimestamp(run.endedAt)}
+                      </Typography>
+                    </Paper>
+                  ))
+                )}
+              </Stack>
+
+              <Divider />
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TaskAltRoundedIcon />
+                <Typography sx={{ fontWeight: 700, fontSize: 39 / 2.4 }}>
+                  Console Logs
+                </Typography>
+              </Stack>
+
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2.3,
+                  border: `1px solid ${theme.appColors.consoleBorder}`,
+                  backgroundColor: theme.appColors.consoleBg,
+                  color: theme.appColors.consoleText,
+                  px: 2.8,
+                  py: 2.5,
+                  minHeight: 300,
+                  fontFamily: "Consolas, Menlo, monospace",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  letterSpacing: "0.01em",
+                  fontVariantNumeric: "tabular-nums",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.72,
+                }}
+              >
+                {selectedRunId
+                  ? runLogs.length > 0
+                    ? runLogs.map((item) => renderLogLine(item)).join("\n")
+                    : "[INFO] Awaiting runtime logs..."
+                  : "[INFO] Select a run to inspect logs."}
+              </Paper>
             </Stack>
-
-            <Divider />
-
-            <Stack direction="row" spacing={1} alignItems="center">
-              <TaskAltRoundedIcon />
-              <Typography sx={{ fontWeight: 700, fontSize: 39 / 2.4 }}>
-                Console Logs
-              </Typography>
-            </Stack>
-
-            <Paper
-              elevation={0}
-              sx={{
-                borderRadius: 2.3,
-                border: `1px solid ${theme.appColors.consoleBorder}`,
-                backgroundColor: theme.appColors.consoleBg,
-                color: theme.appColors.consoleText,
-                px: 2.8,
-                py: 2.5,
-                minHeight: 300,
-                fontFamily: "Consolas, Menlo, monospace",
-                fontSize: 14,
-                fontWeight: 500,
-                letterSpacing: "0.01em",
-                fontVariantNumeric: "tabular-nums",
-                whiteSpace: "pre-wrap",
-                lineHeight: 1.72,
-              }}
-            >
-              {selectedRunId
-                ? runLogs.length > 0
-                  ? runLogs.map((item) => renderLogLine(item)).join("\n")
-                  : "[INFO] Awaiting runtime logs..."
-                : "[INFO] Select a run to inspect logs."}
-            </Paper>
-          </Stack>
-        ) : (
-          <Typography>No task selected.</Typography>
-        )}
-      </Box>
+          ) : (
+            <Typography>No task selected.</Typography>
+          )}
+        </Box>
       </Stack>
 
       <Dialog
@@ -843,7 +924,9 @@ export default function TasksPage() {
                 label="任务类型"
                 value={createTaskType}
                 onChange={(event) =>
-                  setCreateTaskType(event.target.value as TaskDefinition["taskType"])
+                  setCreateTaskType(
+                    event.target.value as TaskDefinition["taskType"],
+                  )
                 }
                 fullWidth
               >

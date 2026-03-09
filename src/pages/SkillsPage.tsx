@@ -1,4 +1,3 @@
-import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
 import InstallDesktopRoundedIcon from "@mui/icons-material/InstallDesktopRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
@@ -63,7 +62,12 @@ function SkillCard(props: {
           <Stack direction="row" spacing={1.2} alignItems="center">
             <Avatar
               src={iconSrc}
-              sx={{ width: 42, height: 42, bgcolor: theme.appColors.avatarSolid, fontSize: 16 }}
+              sx={{
+                width: 42,
+                height: 42,
+                bgcolor: theme.appColors.avatarSolid,
+                fontSize: 16,
+              }}
             >
               {skill.displayName.slice(0, 1).toUpperCase()}
             </Avatar>
@@ -96,9 +100,20 @@ function SkillCard(props: {
             {skill.description}
           </Typography>
 
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            flexWrap="wrap"
+          >
             <Chip size="small" label={sourceLabel(skill.source)} />
-            {skill.version && <Chip size="small" variant="outlined" label={`v${skill.version}`} />}
+            {skill.version && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`v${skill.version}`}
+              />
+            )}
           </Stack>
 
           {!installed ? (
@@ -116,7 +131,9 @@ function SkillCard(props: {
               control={
                 <Switch
                   checked={skill.enabled}
-                  onChange={(_event, checked) => onToggleEnabled(skill, checked)}
+                  onChange={(_event, checked) =>
+                    onToggleEnabled(skill, checked)
+                  }
                   disabled={pending}
                 />
               }
@@ -241,9 +258,12 @@ export default function SkillsPage() {
   return (
     <Box sx={{ p: 3, overflowY: "auto", height: "100%" }}>
       <Stack spacing={2.4}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <Stack direction="row" spacing={1.2} alignItems="center">
-            <ExtensionOutlinedIcon color="primary" />
             <Typography sx={{ fontSize: 28, fontWeight: 700 }}>技能</Typography>
           </Stack>
 
@@ -267,7 +287,7 @@ export default function SkillsPage() {
               disabled={uploadPending}
               sx={{ textTransform: "none" }}
             >
-              上传技能包
+              上传
             </Button>
             <Button
               variant="outlined"
@@ -283,7 +303,9 @@ export default function SkillsPage() {
         </Stack>
 
         {errorText && (
-          <Typography sx={{ color: "error.main", fontSize: 13 }}>{errorText}</Typography>
+          <Typography sx={{ color: "error.main", fontSize: 13 }}>
+            {errorText}
+          </Typography>
         )}
 
         <Divider />
