@@ -42,6 +42,19 @@ function toMessage(row) {
   };
 }
 
+function toChatMemory(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    chatId: row.chat_id,
+    summaryText: row.summary_text,
+    coveredUntilTimestamp: row.covered_until_timestamp,
+    updatedAt: row.updated_at,
+  };
+}
+
 function toTask(row) {
   let logs = [];
   try {
@@ -396,6 +409,14 @@ function ensureSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_messages_chat_time ON messages(chat_id, timestamp);
     CREATE INDEX IF NOT EXISTS idx_chats_updated_at ON chats(updated_at DESC);
 
+    CREATE TABLE IF NOT EXISTS chat_memory (
+      chat_id TEXT PRIMARY KEY,
+      summary_text TEXT NOT NULL,
+      covered_until_timestamp INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -551,6 +572,9 @@ function createStorage(userDataDir) {
     countTasks: db.prepare("SELECT COUNT(1) AS count FROM tasks"),
     getSettings: db.prepare("SELECT * FROM settings WHERE id = ?"),
     getChatById: db.prepare("SELECT * FROM chats WHERE id = ?"),
+    getChatMemoryByChatId: db.prepare(
+      "SELECT * FROM chat_memory WHERE chat_id = ?",
+    ),
     insertChat: db.prepare(
       "INSERT INTO chats (id, title, updated_at) VALUES (@id, @title, @updatedAt)",
     ),
@@ -563,6 +587,9 @@ function createStorage(userDataDir) {
     listChats: db.prepare("SELECT * FROM chats ORDER BY updated_at DESC"),
     listMessagesByChat: db.prepare(
       "SELECT * FROM messages WHERE chat_id = ? ORDER BY timestamp ASC",
+    ),
+    upsertChatMemory: db.prepare(
+      "INSERT INTO chat_memory (chat_id, summary_text, covered_until_timestamp, updated_at) VALUES (@chatId, @summaryText, @coveredUntilTimestamp, @updatedAt) ON CONFLICT(chat_id) DO UPDATE SET summary_text = excluded.summary_text, covered_until_timestamp = excluded.covered_until_timestamp, updated_at = excluded.updated_at",
     ),
     updateChatTime: db.prepare("UPDATE chats SET updated_at = ? WHERE id = ?"),
     updateChatTitle: db.prepare(
@@ -1005,6 +1032,26 @@ function createStorage(userDataDir) {
 
   function getChatMessages(chatId) {
     return queries.listMessagesByChat.all(chatId).map(toMessage);
+  }
+
+  function getChatMemory(chatId) {
+    return toChatMemory(queries.getChatMemoryByChatId.get(chatId));
+  }
+
+  function saveChatMemory(memory) {
+    const normalized = {
+      chatId: String(memory?.chatId || "").trim(),
+      summaryText: String(memory?.summaryText || "").trim(),
+      coveredUntilTimestamp: Number(memory?.coveredUntilTimestamp) || 0,
+      updatedAt: Number(memory?.updatedAt) || Date.now(),
+    };
+
+    if (!normalized.chatId) {
+      return false;
+    }
+
+    queries.upsertChatMemory.run(normalized);
+    return true;
   }
 
   function appendMessage(message) {
@@ -1622,6 +1669,8 @@ function createStorage(userDataDir) {
     renameChat,
     deleteChat,
     getChatMessages,
+    getChatMemory,
+    saveChatMemory,
     appendMessage,
     listTasks,
     upsertTask,

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { ChatModelAdapter } from "@assistant-ui/react";
-import { appendMessage } from "../../utils/db";
+import { appendMessage, refreshChatMemory } from "../../utils/db";
 import { runMultiAgentChatStream } from "../../utils/graphRuntime";
 import type { ChatMessage } from "../../types";
 import { parseAssistantResponse, toAssistantContentParts } from "./assistantResponseParser";
 import { extractTextFromMessage } from "./attachmentUtils";
-import { buildPromptWithContext } from "./messageUtils";
 import { makeId } from "./shared";
 import type { AssistantChatPanelProps } from "./types";
 
@@ -60,10 +59,13 @@ export function useChatModelAdapter({
         let fullAnswer = "";
 
         try {
-          const prompt = buildPromptWithContext(options.messages);
+          const latestUserText = latestUserMessage
+            ? extractTextFromMessage(latestUserMessage).trim()
+            : "";
 
           for await (const event of runMultiAgentChatStream({
-            prompt,
+            chatId,
+            latestUserMessage: latestUserText,
             apiKey: settings.apiKey,
             modelName: settings.modelName.trim() || "gpt-4o-mini",
             baseUrl: settings.baseUrl,
@@ -126,6 +128,14 @@ export function useChatModelAdapter({
           await appendMessage(assistantRecord);
           persistCallbackRef.current(assistantRecord);
           persistedIdsRef.current.add(assistantRecord.id);
+          void refreshChatMemory({
+            chatId,
+            apiKey: settings.apiKey,
+            modelName: settings.modelName.trim() || "gpt-4o-mini",
+            baseUrl: settings.baseUrl,
+          }).catch((error) => {
+            console.warn("[chat-memory] Failed to refresh summary:", error);
+          });
         }
       },
     };

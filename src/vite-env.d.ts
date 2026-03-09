@@ -14,6 +14,13 @@ interface DesktopChatMessage {
   timestamp: number;
 }
 
+interface DesktopChatMemory {
+  chatId: string;
+  summaryText: string;
+  coveredUntilTimestamp: number;
+  updatedAt: number;
+}
+
 interface DesktopAgentTask {
   id: string;
   title: string;
@@ -146,7 +153,9 @@ interface DesktopSkillInstallPayload {
 }
 
 interface AgentRuntimePayload {
-  prompt: string;
+  prompt?: string;
+  chatId?: string;
+  latestUserMessage?: string;
   apiKey?: string;
   modelName?: string;
   baseUrl?: string;
@@ -230,6 +239,8 @@ declare global {
       renameChat: (chatId: string, title: string) => Promise<boolean>;
       deleteChat: (chatId: string) => Promise<boolean>;
       getChatMessages: (chatId: string) => Promise<DesktopChatMessage[]>;
+      getChatMemory: (chatId: string) => Promise<DesktopChatMemory | null>;
+      refreshChatMemory: (payload: AgentRuntimePayload) => Promise<DesktopChatMemory | null>;
       appendMessage: (message: DesktopChatMessage) => Promise<boolean>;
       listTasks: () => Promise<DesktopAgentTask[]>;
       upsertTask: (task: DesktopAgentTask) => Promise<boolean>;

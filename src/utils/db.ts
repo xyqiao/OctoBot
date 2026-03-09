@@ -1,5 +1,6 @@
 import type {
   AgentTask,
+  ChatMemory,
   ChatMessage,
   ChatSession,
   SkillDescriptor,
@@ -47,6 +48,19 @@ export async function deleteChat(chatId: string) {
 
 export async function getChatMessages(chatId: string) {
   return ensureDesktopApi().getChatMessages(chatId) as Promise<ChatMessage[]>;
+}
+
+export async function getChatMemory(chatId: string) {
+  return ensureDesktopApi().getChatMemory(chatId) as Promise<ChatMemory | null>;
+}
+
+export async function refreshChatMemory(payload: {
+  chatId: string;
+  apiKey?: string;
+  modelName?: string;
+  baseUrl?: string;
+}) {
+  return ensureDesktopApi().refreshChatMemory(payload) as Promise<ChatMemory | null>;
 }
 
 export async function appendMessage(message: ChatMessage) {

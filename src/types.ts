@@ -16,6 +16,13 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface ChatMemory {
+  chatId: string;
+  summaryText: string;
+  coveredUntilTimestamp: number;
+  updatedAt: number;
+}
+
 export type TaskStatus = "Running" | "Pending" | "Completed" | "Archived";
 
 export interface AgentTask {

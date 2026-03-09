@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld("desktopApi", {
   renameChat: (chatId, title) => ipcRenderer.invoke("db:renameChat", chatId, title),
   deleteChat: (chatId) => ipcRenderer.invoke("db:deleteChat", chatId),
   getChatMessages: (chatId) => ipcRenderer.invoke("db:getChatMessages", chatId),
+  getChatMemory: (chatId) => ipcRenderer.invoke("db:getChatMemory", chatId),
+  refreshChatMemory: (payload) => ipcRenderer.invoke("db:refreshChatMemory", payload),
   appendMessage: (message) => ipcRenderer.invoke("db:appendMessage", message),
   listTasks: () => ipcRenderer.invoke("db:listTasks"),
   upsertTask: (task) => ipcRenderer.invoke("db:upsertTask", task),

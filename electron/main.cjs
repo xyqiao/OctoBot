@@ -8,6 +8,11 @@ const {
 const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
+const {
+  buildPromptWithBudget,
+  buildSummaryRefreshState,
+  shouldRefreshSummary,
+} = require("./chatContextManager.cjs");
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let storage = null;
@@ -17,7 +22,13 @@ let skillManager = null;
 let shutdownPlaywrightMcp = null;
 let shutdownFilesystemMcp = null;
 const activeChatStreams = new Map();
+const activeChatMemoryRefreshes = new Map();
 let shutdownHandled = false;
+
+function shortChatId(chatId = "") {
+  const value = String(chatId || "").trim();
+  return value ? value.slice(0, 8) : "-";
+}
 
 function isSafeExternalUrl(url) {
   try {
@@ -76,6 +87,142 @@ async function withEnabledSkills(payload = {}) {
   } catch (error) {
     console.warn("[main] Failed to load enabled skill specs:", error);
     return normalizedPayload;
+  }
+}
+
+function normalizeAgentPayload(payload = {}) {
+  const source = payload && typeof payload === "object" ? payload : {};
+  return {
+    ...source,
+    prompt: typeof source.prompt === "string" ? source.prompt : "",
+    chatId: typeof source.chatId === "string" ? source.chatId.trim() : "",
+    latestUserMessage:
+      typeof source.latestUserMessage === "string" ? source.latestUserMessage : "",
+    apiKey: typeof source.apiKey === "string" ? source.apiKey : "",
+    modelName:
+      typeof source.modelName === "string" && source.modelName.trim()
+        ? source.modelName.trim()
+        : "gpt-4o-mini",
+    baseUrl: typeof source.baseUrl === "string" ? source.baseUrl : "",
+  };
+}
+
+async function prepareChatRuntimePayload(payload = {}) {
+  const normalizedPayload = normalizeAgentPayload(payload);
+  if (!storage || !normalizedPayload.chatId) {
+    return normalizedPayload;
+  }
+
+  const messages = storage.getChatMessages(normalizedPayload.chatId);
+  const memory = storage.getChatMemory(normalizedPayload.chatId);
+  const chatContext = buildPromptWithBudget(messages, memory, {
+    latestUserMessage: normalizedPayload.latestUserMessage,
+    modelName: normalizedPayload.modelName,
+  });
+
+  console.info(
+    `[chat-memory] prompt prepared chat=${shortChatId(normalizedPayload.chatId)} ` +
+      `summaryTokens=${chatContext.summaryTokens} ` +
+      `historyMessages=${chatContext.historyMessages.length} ` +
+      `estimatedTokens=${chatContext.tokenEstimate.estimatedTotalTokens}/` +
+      `${chatContext.tokenEstimate.inputBudgetTokens}`,
+  );
+
+  return {
+    ...normalizedPayload,
+    prompt: chatContext.prompt,
+    latestUserMessage: chatContext.latestUserMessage,
+    chatContext,
+  };
+}
+
+async function refreshChatMemory(payload = {}) {
+  const normalizedPayload = normalizeAgentPayload(payload);
+  if (!storage || !normalizedPayload.chatId) {
+    return null;
+  }
+
+  const existing = activeChatMemoryRefreshes.get(normalizedPayload.chatId);
+  if (existing) {
+    return existing;
+  }
+
+  const task = (async () => {
+    const runtime = await getRuntime();
+    const messages = storage.getChatMessages(normalizedPayload.chatId);
+    const memory = storage.getChatMemory(normalizedPayload.chatId);
+    const refreshState = buildSummaryRefreshState(messages, memory, {
+      modelName: normalizedPayload.modelName,
+    });
+
+    if (!shouldRefreshSummary(refreshState)) {
+      console.info(
+        `[chat-memory] summary skipped chat=${shortChatId(normalizedPayload.chatId)} ` +
+          `transitionTokens=${refreshState.transitionTokens}`,
+      );
+      return memory;
+    }
+
+    const lastTransitionMessage = refreshState.transitionMessages.at(-1);
+    if (!lastTransitionMessage) {
+      console.info(
+        `[chat-memory] summary skipped chat=${shortChatId(normalizedPayload.chatId)} ` +
+          `reason=no-transition-messages`,
+      );
+      return memory;
+    }
+
+    console.info(
+      `[chat-memory] summary refreshing chat=${shortChatId(normalizedPayload.chatId)} ` +
+        `transitionMessages=${refreshState.transitionMessages.length} ` +
+        `transitionTokens=${refreshState.transitionTokens}`,
+    );
+
+    try {
+      const result = await runtime.runConversationSummary({
+        previousSummary: refreshState.summaryText,
+        historyText: refreshState.transitionText,
+        apiKey: normalizedPayload.apiKey,
+        modelName: normalizedPayload.modelName,
+        baseUrl: normalizedPayload.baseUrl,
+        onLog: (message) => console.info(message),
+      });
+
+      if (!result?.applied) {
+        console.info(
+          `[chat-memory] summary not applied chat=${shortChatId(normalizedPayload.chatId)}`,
+        );
+        return memory;
+      }
+
+      const nextMemory = {
+        chatId: normalizedPayload.chatId,
+        summaryText: result.summaryText,
+        coveredUntilTimestamp: lastTransitionMessage.timestamp,
+        updatedAt: Date.now(),
+      };
+      storage.saveChatMemory(nextMemory);
+      console.info(
+        `[chat-memory] summary saved chat=${shortChatId(normalizedPayload.chatId)} ` +
+          `coveredUntil=${lastTransitionMessage.timestamp}`,
+      );
+      return nextMemory;
+    } catch (error) {
+      console.warn(
+        `[chat-memory] summary failed chat=${shortChatId(normalizedPayload.chatId)}`,
+        error,
+      );
+      return memory;
+    }
+  })();
+
+  activeChatMemoryRefreshes.set(normalizedPayload.chatId, task);
+  try {
+    return await task;
+  } finally {
+    if (activeChatMemoryRefreshes.get(normalizedPayload.chatId) === task) {
+      activeChatMemoryRefreshes.delete(normalizedPayload.chatId);
+    }
   }
 }
 
@@ -283,7 +430,8 @@ app
 
     ipcMain.handle("agent:chat", async (_event, payload) => {
       const runtime = await getRuntime();
-      return runtime.runMultiAgentChat(await withEnabledSkills(payload));
+      const preparedPayload = await prepareChatRuntimePayload(payload);
+      return runtime.runMultiAgentChat(await withEnabledSkills(preparedPayload));
     });
 
     ipcMain.handle(
@@ -306,8 +454,9 @@ app
 
         void (async () => {
           try {
+            const preparedPayload = await prepareChatRuntimePayload(payload);
             const result = await runtime.runMultiAgentChatStream({
-              ...(await withEnabledSkills(payload)),
+              ...(await withEnabledSkills(preparedPayload)),
               signal: controller.signal,
               onChunk: (chunk) => send({ type: "chunk", chunk }),
               onLog: (log) => send({ type: "log", log }),
@@ -459,6 +608,12 @@ app
     );
     ipcMain.handle("db:getChatMessages", (_event, chatId) =>
       storage.getChatMessages(chatId),
+    );
+    ipcMain.handle("db:getChatMemory", (_event, chatId) =>
+      storage.getChatMemory(chatId),
+    );
+    ipcMain.handle("db:refreshChatMemory", async (_event, payload) =>
+      refreshChatMemory(payload),
     );
     ipcMain.handle("db:appendMessage", (_event, message) =>
       storage.appendMessage(message),

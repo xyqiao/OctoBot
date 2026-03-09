@@ -1,5 +1,6 @@
 import { createAgent } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
   createLangChainTools,
   listCapabilityTools,
@@ -13,6 +14,20 @@ const TOOL_AWARE_SYSTEM_PROMPT = [
 ].join("\n");
 
 const AGENT_RECURSION_LIMIT = 50;
+const SUMMARY_MAX_COMPLETION_TOKENS = 900;
+const SUMMARY_SYSTEM_PROMPT = [
+  "你负责把一段持续协作会话压缩成长期记忆摘要。",
+  "只保留长期稳定信息：用户目标、已确认约束、已完成事项、未完成事项、用户偏好。",
+  "不要保留寒暄、重复描述、逐步工具日志、冗长代码或页面快照细节。",
+  "如果新增历史与旧摘要冲突，以新增历史为准。",
+  "输出必须使用以下固定结构：",
+  "- 用户目标：",
+  "- 已确认约束：",
+  "- 已完成事项：",
+  "- 未完成事项：",
+  "- 用户偏好：",
+  "尽量控制在 900 token 以内，使用简洁中文。",
+].join("\n");
 
 const SKILL_TOOL_NAME_MAP = {
   office_read_document: "office_read_document",
@@ -305,7 +320,7 @@ function collectAllowedToolsFromSkills(selectedSkills = []) {
   return tools;
 }
 
-function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "") {
+function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "", extraOptions = {}) {
   if (!apiKey || !apiKey.trim()) {
     return null;
   }
@@ -314,6 +329,7 @@ function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "") {
     apiKey,
     model: modelName,
     temperature: 0.2,
+    ...extraOptions,
   };
 
   if (baseUrl && baseUrl.trim()) {
@@ -642,6 +658,46 @@ export async function runMultiAgentChat({
     baseUrl,
     enabledSkillSpecs,
   });
+}
+
+export async function runConversationSummary({
+  previousSummary = "",
+  historyText = "",
+  apiKey,
+  modelName,
+  baseUrl,
+  signal,
+  onLog,
+}) {
+  const model = createModel(apiKey, modelName, baseUrl, {
+    maxCompletionTokens: SUMMARY_MAX_COMPLETION_TOKENS,
+  });
+  if (!model) {
+    onLog?.("[SUMMARY] API key unavailable, skip summary refresh.");
+    return {
+      summaryText: toText(previousSummary).trim(),
+      applied: false,
+    };
+  }
+
+  const prompt = [
+    "已有摘要：",
+    toText(previousSummary).trim() || "(无摘要)",
+    "",
+    "新增历史消息：",
+    toText(historyText).trim() || "(无新增历史)",
+  ].join("\n");
+
+  const response = await model.invoke(
+    [new SystemMessage(SUMMARY_SYSTEM_PROMPT), new HumanMessage(prompt)],
+    signal ? { signal } : undefined,
+  );
+
+  const summaryText = toText(response?.content).trim();
+  return {
+    summaryText: summaryText || toText(previousSummary).trim(),
+    applied: true,
+  };
 }
 
 export async function runTaskWorkflow({

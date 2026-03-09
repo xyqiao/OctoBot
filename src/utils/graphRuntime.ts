@@ -1,5 +1,7 @@
 export type RuntimeOptions = {
-  prompt: string;
+  prompt?: string;
+  chatId?: string;
+  latestUserMessage?: string;
   apiKey?: string;
   modelName?: string;
   baseUrl?: string;
@@ -37,16 +39,18 @@ async function* fallbackStream(prompt: string): AsyncGenerator<RuntimeStreamEven
 }
 
 export async function runMultiAgentChat(options: RuntimeOptions): Promise<RuntimeResult> {
+  const fallbackPrompt = options.prompt || options.latestUserMessage || "";
   if (!window.desktopApi?.runAgentChat) {
-    return fallback(options.prompt);
+    return fallback(fallbackPrompt);
   }
 
   return window.desktopApi.runAgentChat(options);
 }
 
 export async function* runMultiAgentChatStream(options: RuntimeOptions): AsyncGenerator<RuntimeStreamEvent> {
+  const fallbackPrompt = options.prompt || options.latestUserMessage || "";
   if (!window.desktopApi?.runAgentChatStream) {
-    yield* fallbackStream(options.prompt);
+    yield* fallbackStream(fallbackPrompt);
     return;
   }
 
@@ -80,6 +84,8 @@ export async function* runMultiAgentChatStream(options: RuntimeOptions): AsyncGe
     streamId = await window.desktopApi.runAgentChatStream(
       {
         prompt: options.prompt,
+        chatId: options.chatId,
+        latestUserMessage: options.latestUserMessage,
         apiKey: options.apiKey,
         modelName: options.modelName,
         baseUrl: options.baseUrl,
@@ -115,7 +121,7 @@ export async function* runMultiAgentChatStream(options: RuntimeOptions): AsyncGe
 
 export async function runTaskWorkflow(options: RuntimeOptions): Promise<RuntimeResult> {
   if (!window.desktopApi?.runTaskWorkflow) {
-    return fallback(options.prompt);
+    return fallback(options.prompt || "");
   }
 
   return window.desktopApi.runTaskWorkflow(options);

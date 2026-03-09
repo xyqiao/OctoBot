@@ -34,6 +34,7 @@
     "adm-zip": "^0.5.16",
     "better-sqlite3": "^12.6.2",
     "docx": "^9.6.0",
+    "js-tiktoken": "^1.0.21",
     "langchain": "^1.2.29",
     "mammoth": "^1.11.0",
     "playwright": "^1.58.2",

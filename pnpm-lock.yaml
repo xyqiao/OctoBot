@@ -50,6 +50,9 @@ importers:
       docx:
         specifier: ^9.6.0
         version: 9.6.0
+      js-tiktoken:
+        specifier: ^1.0.21
+        version: 1.0.21
       langchain:
         specifier: ^1.2.29
         version: 1.2.29(@langchain/core@1.1.30(openai@6.25.0(zod@4.3.6)))(openai@6.25.0(zod@4.3.6))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod-to-json-schema@3.25.1(zod@4.3.6))
