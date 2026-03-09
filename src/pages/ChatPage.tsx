@@ -11,7 +11,11 @@ type ChatPageProps = {
   onChatsChanged: () => Promise<void>;
 };
 
-export default function ChatPage({ activeChat, selectedChatId, onChatsChanged }: ChatPageProps) {
+export default function ChatPage({
+  activeChat,
+  selectedChatId,
+  onChatsChanged,
+}: ChatPageProps) {
   const theme = useTheme();
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -67,14 +71,30 @@ export default function ChatPage({ activeChat, selectedChatId, onChatsChanged }:
 
   return (
     <Stack sx={{ height: "100%" }}>
-      <Box sx={{ backgroundColor: theme.appColors.assistantBubble, textAlign: "center", py: 1, borderBottom: `1px solid ${theme.appColors.border}` }}>
-        <Typography variant="h4" sx={{ fontSize: 16, fontWeight: 600, lineHeight: 1.2 }}>
+      <Box
+        sx={{
+          backgroundColor: theme.appColors.assistantBubble,
+          textAlign: "center",
+          py: 1,
+          borderBottom: `1px solid ${theme.appColors.border}`,
+        }}
+      >
+        <Typography
+          variant="h4"
+          sx={{ fontSize: 16, fontWeight: 600, lineHeight: 1.2 }}
+        >
           {activeChat?.title}
         </Typography>
-        <Typography sx={{ fontSize: 12, color: theme.appColors.textMuted, mt: 0.5 }}>内容由AI生成</Typography>
+        <Typography
+          sx={{ fontSize: 12, color: theme.appColors.textMuted, mt: 0.5 }}
+        >
+          内容由AI生成
+        </Typography>
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, backgroundColor: theme.appColors.shell }}>
+      <Box
+        sx={{ flex: 1, minHeight: 0, backgroundColor: theme.appColors.shell }}
+      >
         {!settings ? (
           <Box sx={{ display: "grid", placeItems: "center", height: "100%" }}>
             <CircularProgress size={28} />

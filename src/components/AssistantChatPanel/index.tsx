@@ -54,7 +54,6 @@ export function AssistantChatPanel({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread
-        assistantAvatar={{ fallback: "AI" }}
         composer={{ allowAttachments: true }}
         components={{
           AssistantMessage: AssistantMessageWithReasoning,

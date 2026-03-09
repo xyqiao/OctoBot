@@ -1,5 +1,10 @@
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import { List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
+import {
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import type { NavView } from "../../types";
 
@@ -8,7 +13,10 @@ type SidebarFooterProps = {
   onSelectView: (view: NavView) => void;
 };
 
-export default function SidebarFooter({ view, onSelectView }: SidebarFooterProps) {
+export default function SidebarFooter({
+  view,
+  onSelectView,
+}: SidebarFooterProps) {
   const theme = useTheme();
 
   return (
@@ -23,22 +31,19 @@ export default function SidebarFooter({ view, onSelectView }: SidebarFooterProps
             view === "settings"
               ? `1px solid ${theme.appColors.borderStrong}`
               : "1px solid transparent",
-          backgroundColor: view === "settings" ? theme.appColors.sidebarSelected : "transparent",
+          backgroundColor:
+            view === "settings"
+              ? theme.appColors.sidebarSelected
+              : "transparent",
         }}
       >
         <ListItemIcon sx={{ minWidth: 38 }}>
-          <SettingsOutlinedIcon color={view === "settings" ? "primary" : "action"} />
+          <SettingsOutlinedIcon
+            color={view === "settings" ? "primary" : "action"}
+          />
         </ListItemIcon>
-        <ListItemText
-          primary="个人设置"
-          primaryTypographyProps={{
-            fontSize: 30 / 2.3,
-            fontWeight: view === "settings" ? 700 : 500,
-            color: view === "settings" ? theme.palette.primary.main : "inherit",
-          }}
-        />
+        <ListItemText primary="设置" />
       </ListItemButton>
     </List>
   );
 }
-

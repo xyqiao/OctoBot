@@ -7,9 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ThemeProvider, createTheme, type Theme } from "@mui/material/styles";
+import { ThemeProvider, alpha, createTheme, type Theme } from "@mui/material/styles";
 import type { ThemeMode } from "./types";
-import { getSettings, saveSettings } from "./utils/db";
+import { getSettings } from "./utils/db";
 
 type ThemeModeContextValue = {
   mode: ThemeMode;
@@ -83,29 +83,29 @@ const lightColors: AppColorTokens = {
 };
 
 const darkColors: AppColorTokens = {
-  shell: "#0b1220",
-  shellElevated: "#11192a",
-  sidebar: "#10192a",
-  sidebarSelected: "#18253c",
-  border: "#23324a",
-  borderStrong: "#314564",
-  textMuted: "#95a6c5",
-  textPrimary: "#e8eef9",
-  panel: "#121b2c",
-  panelAlt: "#162235",
-  panelSoft: "#19263d",
-  userBubble: "#2d7ff9",
-  userBubbleBorder: "#3c8cff",
-  assistantBubble: "#162235",
-  assistantBubbleBorder: "#263756",
-  composer: "#142033",
-  composerBorder: "#3b82f6",
-  consoleBg: "#07111f",
-  consoleBorder: "#112039",
-  consoleText: "#63d2ff",
-  avatarSolid: "#3b82f6",
-  inputBg: "#0f1726",
-  overlay: "rgba(5, 10, 20, 0.42)",
+  shell: "#17181b",
+  shellElevated: "#1c1d21",
+  sidebar: "#1d1f24",
+  sidebarSelected: "#2a2d33",
+  border: "#353941",
+  borderStrong: "#4a505a",
+  textMuted: "#a3a7af",
+  textPrimary: "#eceef2",
+  panel: "#23252a",
+  panelAlt: "#272a30",
+  panelSoft: "#2d3037",
+  userBubble: "#69717d",
+  userBubbleBorder: "#818c9a",
+  assistantBubble: "#2a2c31",
+  assistantBubbleBorder: "#3a3e46",
+  composer: "#23262c",
+  composerBorder: "#737d89",
+  consoleBg: "#16181d",
+  consoleBorder: "#2f333b",
+  consoleText: "#c6d6e4",
+  avatarSolid: "#7d8fa6",
+  inputBg: "#202329",
+  overlay: "rgba(0, 0, 0, 0.22)",
 };
 
 function themeColorsForMode(mode: ThemeMode) {
@@ -119,7 +119,16 @@ export function createAppTheme(mode: ThemeMode): Theme {
     palette: {
       mode,
       primary: {
-        main: mode === "dark" ? "#60a5fa" : "#1573e6",
+        main: mode === "dark" ? "#93a4b8" : "#1573e6",
+      },
+      success: {
+        main: mode === "dark" ? "#8fa78c" : "#2e7d32",
+      },
+      warning: {
+        main: mode === "dark" ? "#c4a97d" : "#ed6c02",
+      },
+      error: {
+        main: mode === "dark" ? "#c28e8e" : "#d32f2f",
       },
       background: {
         default: colors.shell,
@@ -177,15 +186,15 @@ export function createAppTheme(mode: ThemeMode): Theme {
             "--app-console-text": colors.consoleText,
             "--app-avatar-solid": colors.avatarSolid,
             "--app-input-bg": colors.inputBg,
-            "--aui-primary": mode === "dark" ? "213 94% 68%" : "211 83% 50%",
+            "--aui-primary": mode === "dark" ? "214 16% 66%" : "211 83% 50%",
             "--aui-primary-foreground": "0 0% 100%",
-            "--aui-ring": mode === "dark" ? "213 94% 68%" : "211 83% 50%",
-            "--aui-border": mode === "dark" ? "217 30% 28%" : "214 35% 88%",
-            "--aui-input": mode === "dark" ? "217 30% 28%" : "214 35% 88%",
-            "--aui-muted": mode === "dark" ? "216 22% 18%" : "216 36% 95%",
-            "--aui-muted-foreground": mode === "dark" ? "216 22% 70%" : "216 21% 46%",
-            "--aui-background": mode === "dark" ? "222 34% 12%" : "220 63% 98%",
-            "--aui-foreground": mode === "dark" ? "220 35% 96%" : "224 34% 17%",
+            "--aui-ring": mode === "dark" ? "214 16% 66%" : "211 83% 50%",
+            "--aui-border": mode === "dark" ? "220 6% 28%" : "214 35% 88%",
+            "--aui-input": mode === "dark" ? "220 6% 28%" : "214 35% 88%",
+            "--aui-muted": mode === "dark" ? "220 4% 20%" : "216 36% 95%",
+            "--aui-muted-foreground": mode === "dark" ? "220 7% 72%" : "216 21% 46%",
+            "--aui-background": mode === "dark" ? "220 6% 16%" : "220 63% 98%",
+            "--aui-foreground": mode === "dark" ? "220 10% 92%" : "224 34% 17%",
           },
           body: {
             background: `linear-gradient(180deg, ${colors.shellElevated} 0%, ${colors.shell} 82%)`,
@@ -204,6 +213,18 @@ export function createAppTheme(mode: ThemeMode): Theme {
         styleOverrides: {
           root: {
             backgroundColor: colors.inputBg,
+            color: colors.textPrimary,
+            borderRadius: 12,
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: colors.border,
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: colors.borderStrong,
+            },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: mode === "dark" ? "#8d98a6" : undefined,
+              borderWidth: 1,
+            },
           },
         },
       },
@@ -215,10 +236,125 @@ export function createAppTheme(mode: ThemeMode): Theme {
           },
         },
       },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            color: colors.textMuted,
+            '&.Mui-focused': {
+              color: mode === "dark" ? "#b5bcc5" : undefined,
+            },
+          },
+        },
+      },
+      MuiFormHelperText: {
+        styleOverrides: {
+          root: {
+            color: mode === "dark" ? "#b1b5bd" : colors.textMuted,
+            marginLeft: 2,
+            marginRight: 2,
+          },
+        },
+      },
+      MuiTextField: {
+        defaultProps: {
+          variant: "outlined",
+        },
+      },
       MuiSwitch: {
         styleOverrides: {
           track: {
-            backgroundColor: mode === "dark" ? "#36527d" : "#9ebbe6",
+            backgroundColor: mode === "dark" ? "#5c6470" : "#9ebbe6",
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            boxShadow: "none",
+          },
+          contained: {
+            boxShadow: "none",
+            color: mode === "dark" ? "#101114" : "#ffffff",
+            backgroundColor: mode === "dark" ? "#a0acb9" : undefined,
+            '&:hover': {
+              boxShadow: "none",
+              backgroundColor: mode === "dark" ? "#b1bac4" : undefined,
+            },
+          },
+          outlined: {
+            borderColor: colors.borderStrong,
+            backgroundColor: mode === "dark" ? alpha(colors.panelSoft, 0.35) : "transparent",
+            '&:hover': {
+              borderColor: colors.textMuted,
+              backgroundColor: alpha(colors.panelSoft, mode === "dark" ? 0.72 : 0.6),
+            },
+          },
+          text: {
+            color: mode === "dark" ? colors.textPrimary : undefined,
+            '&:hover': {
+              backgroundColor: alpha(colors.panelSoft, mode === "dark" ? 0.9 : 0.75),
+            },
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            fontWeight: 700,
+          },
+          filled: {
+            backgroundColor: colors.panelSoft,
+            color: colors.textPrimary,
+          },
+          outlined: {
+            borderColor: colors.borderStrong,
+            color: colors.textMuted,
+            backgroundColor: mode === "dark" ? alpha(colors.panelSoft, 0.45) : "transparent",
+          },
+        },
+      },
+      MuiLinearProgress: {
+        styleOverrides: {
+          root: {
+            backgroundColor: colors.borderStrong,
+          },
+          bar: {
+            backgroundColor: mode === "dark" ? "#98a5b4" : undefined,
+          },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: colors.panel,
+            border: `1px solid ${colors.border}`,
+          },
+          list: {
+            paddingTop: 4,
+            paddingBottom: 4,
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+            margin: "2px 6px",
+            '&:hover': {
+              backgroundColor: alpha(colors.panelSoft, mode === "dark" ? 0.92 : 0.7),
+            },
+            '&.Mui-selected': {
+              backgroundColor: alpha(colors.panelSoft, mode === "dark" ? 0.96 : 0.8),
+            },
+          },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            '&:hover': {
+              backgroundColor: alpha(colors.panelSoft, mode === "dark" ? 0.88 : 0.72),
+            },
           },
         },
       },
@@ -279,18 +415,6 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
   const persistMode = useCallback((nextMode: ThemeMode) => {
     setModeState(nextMode);
     writeStoredThemeMode(nextMode);
-
-    void (async () => {
-      try {
-        const settings = await getSettings();
-        await saveSettings({
-          ...settings,
-          themeMode: nextMode,
-        });
-      } catch {
-        // Ignore settings persistence failures.
-      }
-    })();
   }, []);
 
   const toggleMode = useCallback(() => {

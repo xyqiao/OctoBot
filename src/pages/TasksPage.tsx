@@ -480,14 +480,22 @@ export default function TasksPage() {
                   borderRadius: 2.2,
                   border:
                     selectedTaskId === task.id
-                      ? `2px solid ${theme.palette.primary.main}`
+                      ? `1px solid ${theme.palette.primary.main}`
                       : `1px solid ${theme.appColors.border}`,
                   backgroundColor:
                     selectedTaskId === task.id ? theme.appColors.panelSoft : theme.appColors.panelAlt,
                   boxShadow:
                     selectedTaskId === task.id
-                      ? `0 2px 12px ${theme.appColors.overlay}`
-                      : "none",
+                      ? `0 16px 32px ${theme.appColors.overlay}`
+                      : `0 8px 18px ${theme.appColors.overlay}`,
+                  transform: selectedTaskId === task.id ? "translateY(-1px)" : "none",
+                  transition: "background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease",
+                  '&:hover': {
+                    borderColor: selectedTaskId === task.id ? theme.palette.primary.main : theme.appColors.borderStrong,
+                    backgroundColor: theme.appColors.panelSoft,
+                    boxShadow: `0 14px 28px ${theme.appColors.overlay}`,
+                    transform: "translateY(-1px)",
+                  },
                 }}
               >
                 <CardContent sx={{ p: 2.2, "&:last-child": { pb: 2.2 } }}>
@@ -537,9 +545,17 @@ export default function TasksPage() {
       <Box sx={{ flex: 1, p: 3.2, overflowY: "auto" }}>
         {activeTask ? (
           <Stack spacing={3}>
-            <Box>
+            <Box
+              sx={{
+                p: 2.2,
+                border: `1px solid ${theme.appColors.border}`,
+                borderRadius: 2.2,
+                backgroundColor: theme.appColors.panelAlt,
+                boxShadow: `0 12px 24px ${theme.appColors.overlay}`,
+              }}
+            >
               <Stack direction="row" spacing={1.5} alignItems="center">
-                <Typography variant="h4" sx={{ fontSize: 53 / 2.3, fontWeight: 700 }}>
+                <Typography variant="h4" sx={{ fontSize: 53 / 2.3, fontWeight: 700, letterSpacing: "-0.02em" }}>
                   {activeTask.title}
                 </Typography>
                 <Chip
@@ -548,7 +564,7 @@ export default function TasksPage() {
                 />
                 {refreshing && <CircularProgress size={16} />}
               </Stack>
-              <Typography sx={{ mt: 0.8, color: theme.appColors.textMuted, fontSize: 34 / 2.5 }}>
+              <Typography sx={{ mt: 0.9, color: theme.appColors.textMuted, fontSize: 13.5, letterSpacing: "0.01em" }}>
                 {describeSchedule(activeTask)}
               </Typography>
             </Box>
@@ -669,7 +685,7 @@ export default function TasksPage() {
                 direction="row"
                 justifyContent="space-between"
                 alignItems="center"
-                sx={{ mb: 1 }}
+                sx={{ mb: 1.1 }}
               >
                 <Typography sx={{ fontWeight: 700, fontSize: 36 / 2.4 }}>
                   Execution Progress
@@ -719,10 +735,16 @@ export default function TasksPage() {
                     onClick={() => setSelectedRunId(run.id)}
                     sx={{
                       p: 1.5,
-                      border: selectedRunId === run.id ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.appColors.border}`,
-                      borderRadius: 1.4,
+                      border: selectedRunId === run.id ? `1px solid ${theme.palette.primary.main}` : `1px solid ${theme.appColors.border}`,
+                      borderRadius: 1.6,
                       cursor: "pointer",
                       backgroundColor: selectedRunId === run.id ? theme.appColors.panelSoft : theme.appColors.panel,
+                      boxShadow: selectedRunId === run.id ? `0 12px 24px ${theme.appColors.overlay}` : "none",
+                      transition: "background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease",
+                      '&:hover': {
+                        borderColor: selectedRunId === run.id ? theme.palette.primary.main : theme.appColors.borderStrong,
+                        backgroundColor: theme.appColors.panelSoft,
+                      },
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" spacing={1}>
@@ -766,9 +788,12 @@ export default function TasksPage() {
                 py: 2.5,
                 minHeight: 300,
                 fontFamily: "Consolas, Menlo, monospace",
-                fontSize: 15,
+                fontSize: 14,
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+                fontVariantNumeric: "tabular-nums",
                 whiteSpace: "pre-wrap",
-                lineHeight: 1.55,
+                lineHeight: 1.72,
               }}
             >
               {selectedRunId

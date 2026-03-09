@@ -4,15 +4,14 @@ import {
   MessagePrimitive,
   useAui,
   useAuiState,
+  useThread,
 } from "@assistant-ui/react";
-import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import {
   AssistantActionBar,
   AssistantMessage,
   AttachmentUI,
   BranchPicker,
   MessagePart,
-  UserActionBar,
 } from "@assistant-ui/react-ui";
 import { MarkdownText, ThinkingText } from "./MarkdownText";
 
@@ -69,10 +68,25 @@ const ReasoningChainOfThought: FC = () => {
   );
 };
 
+const AssistantMessageTools: FC = () => {
+  const allowCopy = useThread((thread) => thread.capabilities.unstable_copy);
+  const allowReload = useThread((thread) => thread.capabilities.reload);
+
+  if (!allowCopy && !allowReload) {
+    return null;
+  }
+
+  return (
+    <AssistantActionBar.Root hideWhenRunning autohide="not-last">
+      {allowCopy ? <AssistantActionBar.Copy /> : null}
+      {allowReload ? <AssistantActionBar.Reload /> : null}
+    </AssistantActionBar.Root>
+  );
+};
+
 export const AssistantMessageWithReasoning: FC = () => {
   return (
-    <AssistantMessage.Root>
-      <AssistantMessage.Avatar />
+    <AssistantMessage.Root className="nexus-assistant-message-root">
       <AssistantMessage.Content
         components={{
           Text: MarkdownText,
@@ -81,7 +95,7 @@ export const AssistantMessageWithReasoning: FC = () => {
         }}
       />
       <BranchPicker />
-      <AssistantActionBar />
+      <AssistantMessageTools />
     </AssistantMessage.Root>
   );
 };
@@ -100,16 +114,12 @@ export const UserMessageWithAvatar: FC = () => {
       </MessagePrimitive.If>
 
       <MessagePrimitive.If hasContent>
-        <UserActionBar />
         <div className="aui-user-message-content">
           <MessagePrimitive.Content
             components={{
               Text: MessagePart.Text,
             }}
           />
-        </div>
-        <div className="nexus-user-avatar" aria-label="user avatar">
-          <PersonOutlineRoundedIcon fontSize="small" />
         </div>
       </MessagePrimitive.If>
 

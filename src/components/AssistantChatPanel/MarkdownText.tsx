@@ -1,4 +1,5 @@
 import { type ComponentProps, type FC } from "react";
+import { useTheme } from "@mui/material/styles";
 import type { EmptyMessagePartProps } from "@assistant-ui/react";
 import { makeMarkdownText } from "@assistant-ui/react-ui";
 import { PrismLight as ReactSyntaxHighlighter } from "react-syntax-highlighter";
@@ -15,6 +16,7 @@ import langTsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
 import langTypescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
 import langYaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
 import oneDark from "react-syntax-highlighter/dist/esm/styles/prism/one-dark";
+import oneLight from "react-syntax-highlighter/dist/esm/styles/prism/one-light";
 import remarkGfm from "remark-gfm";
 
 const prismLanguageAliases: Record<string, string> = {
@@ -74,6 +76,7 @@ const MarkdownSyntaxHighlighter = ({
   language,
   code,
 }: MarkdownSyntaxHighlighterProps) => {
+  const theme = useTheme();
   const { Pre, Code } = components;
   const normalizedLanguage = normalizePrismLanguage(language);
 
@@ -88,13 +91,15 @@ const MarkdownSyntaxHighlighter = ({
   return (
     <ReactSyntaxHighlighter
       language={normalizedLanguage}
-      style={oneDark}
+      style={theme.palette.mode === "dark" ? oneDark : oneLight}
       PreTag={Pre as never}
       CodeTag={Code as never}
       customStyle={{
         margin: 0,
         borderTopLeftRadius: 0,
         borderTopRightRadius: 0,
+        background: theme.palette.mode === "dark" ? theme.appColors.consoleBg : theme.appColors.panel,
+        border: `1px solid ${theme.appColors.border}`,
       }}
     >
       {code}
