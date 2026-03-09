@@ -469,7 +469,7 @@ async function runToolAwareAgent({
     for (const part of chunkText(fallbackAnswer)) {
       onChunk?.(part);
     }
-    pushLog(logs, onLog, "[WARN] API key unavailable, returned mock result.");
+    pushLog(logs, onLog, "[WARN] API Key 未配置，已返回模拟结果。");
 
     return {
       answer: fallbackAnswer,
@@ -673,7 +673,7 @@ export async function runConversationSummary({
     maxCompletionTokens: SUMMARY_MAX_COMPLETION_TOKENS,
   });
   if (!model) {
-    onLog?.("[SUMMARY] API key unavailable, skip summary refresh.");
+    onLog?.("[摘要] API Key 未配置，跳过摘要刷新。");
     return {
       summaryText: toText(previousSummary).trim(),
       applied: false,

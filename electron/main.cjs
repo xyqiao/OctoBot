@@ -121,10 +121,10 @@ async function prepareChatRuntimePayload(payload = {}) {
   });
 
   console.info(
-    `[chat-memory] prompt prepared chat=${shortChatId(normalizedPayload.chatId)} ` +
-      `summaryTokens=${chatContext.summaryTokens} ` +
-      `historyMessages=${chatContext.historyMessages.length} ` +
-      `estimatedTokens=${chatContext.tokenEstimate.estimatedTotalTokens}/` +
+    `[聊天记忆] 已构建提示词 chat=${shortChatId(normalizedPayload.chatId)} ` +
+      `摘要Token=${chatContext.summaryTokens} ` +
+      `历史消息数=${chatContext.historyMessages.length} ` +
+      `预计Token=${chatContext.tokenEstimate.estimatedTotalTokens}/` +
       `${chatContext.tokenEstimate.inputBudgetTokens}`,
   );
 
@@ -157,8 +157,8 @@ async function refreshChatMemory(payload = {}) {
 
     if (!shouldRefreshSummary(refreshState)) {
       console.info(
-        `[chat-memory] summary skipped chat=${shortChatId(normalizedPayload.chatId)} ` +
-          `transitionTokens=${refreshState.transitionTokens}`,
+        `[聊天记忆] 跳过摘要刷新 chat=${shortChatId(normalizedPayload.chatId)} ` +
+          `过渡区Token=${refreshState.transitionTokens}`,
       );
       return memory;
     }
@@ -166,16 +166,16 @@ async function refreshChatMemory(payload = {}) {
     const lastTransitionMessage = refreshState.transitionMessages.at(-1);
     if (!lastTransitionMessage) {
       console.info(
-        `[chat-memory] summary skipped chat=${shortChatId(normalizedPayload.chatId)} ` +
-          `reason=no-transition-messages`,
+        `[聊天记忆] 跳过摘要刷新 chat=${shortChatId(normalizedPayload.chatId)} ` +
+          `原因=没有可摘要的过渡消息`,
       );
       return memory;
     }
 
     console.info(
-      `[chat-memory] summary refreshing chat=${shortChatId(normalizedPayload.chatId)} ` +
-        `transitionMessages=${refreshState.transitionMessages.length} ` +
-        `transitionTokens=${refreshState.transitionTokens}`,
+      `[聊天记忆] 开始刷新摘要 chat=${shortChatId(normalizedPayload.chatId)} ` +
+        `过渡消息数=${refreshState.transitionMessages.length} ` +
+        `过渡区Token=${refreshState.transitionTokens}`,
     );
 
     try {
@@ -190,7 +190,7 @@ async function refreshChatMemory(payload = {}) {
 
       if (!result?.applied) {
         console.info(
-          `[chat-memory] summary not applied chat=${shortChatId(normalizedPayload.chatId)}`,
+          `[聊天记忆] 摘要结果未生效 chat=${shortChatId(normalizedPayload.chatId)}`,
         );
         return memory;
       }
@@ -203,13 +203,13 @@ async function refreshChatMemory(payload = {}) {
       };
       storage.saveChatMemory(nextMemory);
       console.info(
-        `[chat-memory] summary saved chat=${shortChatId(normalizedPayload.chatId)} ` +
-          `coveredUntil=${lastTransitionMessage.timestamp}`,
+        `[聊天记忆] 摘要已保存 chat=${shortChatId(normalizedPayload.chatId)} ` +
+          `覆盖到=${lastTransitionMessage.timestamp}`,
       );
       return nextMemory;
     } catch (error) {
       console.warn(
-        `[chat-memory] summary failed chat=${shortChatId(normalizedPayload.chatId)}`,
+        `[聊天记忆] 摘要刷新失败 chat=${shortChatId(normalizedPayload.chatId)}`,
         error,
       );
       return memory;
