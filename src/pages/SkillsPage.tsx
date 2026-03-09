@@ -1,28 +1,37 @@
 import InstallDesktopRoundedIcon from "@mui/icons-material/InstallDesktopRounded";
+import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
 import {
-  Avatar,
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Divider,
-  FormControlLabel,
+  IconButton,
+  Menu,
+  MenuItem,
   Stack,
   Switch,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import {
   disableSkill,
   enableSkill,
   installSkill,
   listSkills,
   refreshSkillsCatalog,
+  uninstallSkill,
 } from "../utils/db";
 import type { SkillDescriptor } from "../types";
 
@@ -33,18 +42,17 @@ function toFileUrl(filePath?: string | null) {
   return `file://${filePath.replace(/\\/g, "/")}`;
 }
 
-function sourceLabel(source: SkillDescriptor["source"]) {
-  return source === "builtin" ? "内置" : "本地上传";
-}
-
 function SkillCard(props: {
   skill: SkillDescriptor;
+  variant: "installed" | "recommended";
   pending: boolean;
   onInstall: (skillId: string) => void;
   onToggleEnabled: (skill: SkillDescriptor, checked: boolean) => void;
+  onOpenMenu: (event: MouseEvent<HTMLElement>, skill: SkillDescriptor) => void;
 }) {
   const theme = useTheme();
-  const { skill, pending, onInstall, onToggleEnabled } = props;
+  const { skill, variant, pending, onInstall, onToggleEnabled, onOpenMenu } =
+    props;
   const installed = skill.installStatus === "installed";
   const iconSrc = toFileUrl(skill.iconPath);
 
@@ -52,94 +60,135 @@ function SkillCard(props: {
     <Card
       elevation={0}
       sx={{
+        height: "100%",
         border: `1px solid ${theme.appColors.border}`,
-        borderRadius: 2,
+        borderRadius: 3,
         backgroundColor: theme.appColors.panelAlt,
+        boxShadow: `0 14px 30px ${theme.appColors.overlay}`,
       }}
     >
-      <CardContent sx={{ p: 2 }}>
-        <Stack spacing={1.6}>
-          <Stack direction="row" spacing={1.2} alignItems="center">
-            <Avatar
+      <CardContent
+        sx={{
+          p: 2,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: 1.6,
+          "&:last-child": { pb: 2 },
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1.2}
+          alignItems="center"
+          sx={{ minWidth: 0 }}
+        >
+          {iconSrc ? (
+            <Box
+              component="img"
               src={iconSrc}
+              alt={skill.displayName}
               sx={{
-                width: 42,
-                height: 42,
-                bgcolor: theme.appColors.avatarSolid,
-                fontSize: 16,
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                objectFit: "contain",
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                display: "grid",
+                placeItems: "center",
+                color: theme.appColors.textMuted,
+                fontSize: 22,
+                fontWeight: 700,
+                lineHeight: 1,
               }}
             >
               {skill.displayName.slice(0, 1).toUpperCase()}
-            </Avatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: 15 }}>
-                {skill.displayName}
-              </Typography>
-              <Typography
-                sx={{
-                  color: theme.appColors.textMuted,
-                  fontSize: 12,
-                  textOverflow: "ellipsis",
-                  overflow: "hidden",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {skill.name}
-              </Typography>
             </Box>
-          </Stack>
+          )}
 
           <Typography
             sx={{
-              minHeight: 40,
-              color: theme.palette.text.secondary,
-              fontSize: 13,
-              lineHeight: 1.45,
+              minWidth: 0,
+              fontWeight: 700,
+              fontSize: 16,
+              lineHeight: 1.35,
+              color: theme.appColors.textPrimary,
             }}
           >
-            {skill.description}
+            {skill.displayName}
           </Typography>
+        </Stack>
 
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            flexWrap="wrap"
-          >
-            <Chip size="small" label={sourceLabel(skill.source)} />
-            {skill.version && (
-              <Chip
-                size="small"
-                variant="outlined"
-                label={`v${skill.version}`}
+        <Typography
+          sx={{
+            minHeight: "2.9em",
+            color: theme.palette.text.secondary,
+            fontSize: 13,
+            lineHeight: 1.45,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {skill.description}
+        </Typography>
+
+        <Box sx={{ flex: 1 }} />
+
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={1}
+        >
+          {variant === "installed" ? (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Switch
+                checked={skill.enabled}
+                onChange={(_event, checked) => onToggleEnabled(skill, checked)}
+                disabled={pending}
               />
-            )}
-          </Stack>
-
-          {!installed ? (
+              <Typography
+                sx={{ color: theme.appColors.textMuted, fontSize: 13 }}
+              >
+                {skill.enabled ? "已开启" : "已关闭"}
+              </Typography>
+            </Stack>
+          ) : (
             <Button
-              variant="contained"
-              startIcon={<InstallDesktopRoundedIcon />}
+              variant={installed ? "outlined" : "contained"}
+              startIcon={installed ? undefined : <InstallDesktopRoundedIcon />}
               onClick={() => onInstall(skill.id)}
-              disabled={pending}
+              disabled={pending || installed}
               sx={{ textTransform: "none", fontWeight: 700 }}
             >
-              安装
+              {installed ? "已安装" : "安装"}
             </Button>
+          )}
+
+          {variant === "installed" ? (
+            <IconButton
+              onClick={(event) => onOpenMenu(event, skill)}
+              disabled={pending}
+              size="small"
+              sx={{
+                color: theme.appColors.textMuted,
+                borderRadius: 2,
+              }}
+            >
+              <MoreHorizRoundedIcon fontSize="small" />
+            </IconButton>
           ) : (
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={skill.enabled}
-                  onChange={(_event, checked) =>
-                    onToggleEnabled(skill, checked)
-                  }
-                  disabled={pending}
-                />
-              }
-              label={skill.enabled ? "已开启" : "已关闭"}
-              sx={{ m: 0 }}
-            />
+            <Box sx={{ width: 32, height: 32 }} />
           )}
         </Stack>
       </CardContent>
@@ -154,6 +203,8 @@ export default function SkillsPage() {
   const [actionPendingId, setActionPendingId] = useState("");
   const [uploadPending, setUploadPending] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
+  const [menuSkill, setMenuSkill] = useState<SkillDescriptor | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -161,10 +212,7 @@ export default function SkillsPage() {
     () => skills.filter((item) => item.installStatus === "installed"),
     [skills],
   );
-  const uninstalledSkills = useMemo(
-    () => skills.filter((item) => item.installStatus !== "installed"),
-    [skills],
-  );
+  const recommendedSkills = useMemo(() => skills, [skills]);
 
   const loadSkills = useCallback(async () => {
     const loaded = await listSkills();
@@ -186,6 +234,11 @@ export default function SkillsPage() {
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  function closeMenu() {
+    setMenuAnchorEl(null);
+    setMenuSkill(null);
+  }
 
   async function handleRefresh() {
     setErrorText("");
@@ -219,6 +272,20 @@ export default function SkillsPage() {
       } else {
         await disableSkill(skill.id);
       }
+      await loadSkills();
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : String(error));
+    } finally {
+      setActionPendingId("");
+    }
+  }
+
+  async function handleUninstall(skill: SkillDescriptor) {
+    closeMenu();
+    setActionPendingId(skill.id);
+    setErrorText("");
+    try {
+      await uninstallSkill(skill.id);
       await loadSkills();
     } catch (error) {
       setErrorText(error instanceof Error ? error.message : String(error));
@@ -287,7 +354,7 @@ export default function SkillsPage() {
               disabled={uploadPending}
               sx={{ textTransform: "none" }}
             >
-              上传
+              导入
             </Button>
             <Button
               variant="outlined"
@@ -311,7 +378,7 @@ export default function SkillsPage() {
         <Divider />
 
         <Box>
-          <Typography sx={{ fontWeight: 700, mb: 1.2 }}>已安装技能</Typography>
+          <Typography sx={{ fontWeight: 700, mb: 1.2 }}>已安装</Typography>
           {installedSkills.length === 0 ? (
             <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
               暂无已安装技能。
@@ -320,17 +387,22 @@ export default function SkillsPage() {
             <Box
               sx={{
                 display: "grid",
-                gap: 1.5,
-                gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))",
+                gap: 2,
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
               }}
             >
               {installedSkills.map((skill) => (
                 <SkillCard
-                  key={skill.id}
+                  key={`installed:${skill.id}`}
                   skill={skill}
+                  variant="installed"
                   pending={actionPendingId === skill.id || uploadPending}
                   onInstall={handleInstall}
                   onToggleEnabled={handleToggleEnabled}
+                  onOpenMenu={(event, targetSkill) => {
+                    setMenuAnchorEl(event.currentTarget);
+                    setMenuSkill(targetSkill);
+                  }}
                 />
               ))}
             </Box>
@@ -340,32 +412,53 @@ export default function SkillsPage() {
         <Divider />
 
         <Box>
-          <Typography sx={{ fontWeight: 700, mb: 1.2 }}>未安装技能</Typography>
-          {uninstalledSkills.length === 0 ? (
+          <Typography sx={{ fontWeight: 700, mb: 1.2 }}>推荐</Typography>
+          {recommendedSkills.length === 0 ? (
             <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
-              暂无可安装技能。
+              暂无推荐技能。
             </Typography>
           ) : (
             <Box
               sx={{
                 display: "grid",
-                gap: 1.5,
-                gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))",
+                gap: 2,
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
               }}
             >
-              {uninstalledSkills.map((skill) => (
+              {recommendedSkills.map((skill) => (
                 <SkillCard
-                  key={skill.id}
+                  key={`recommended:${skill.id}`}
                   skill={skill}
+                  variant="recommended"
                   pending={actionPendingId === skill.id || uploadPending}
                   onInstall={handleInstall}
                   onToggleEnabled={handleToggleEnabled}
+                  onOpenMenu={() => undefined}
                 />
               ))}
             </Box>
           )}
         </Box>
       </Stack>
+
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl && menuSkill)}
+        onClose={closeMenu}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MenuItem
+          disabled={!menuSkill || actionPendingId === menuSkill?.id}
+          onClick={() => {
+            if (menuSkill) {
+              void handleUninstall(menuSkill);
+            }
+          }}
+        >
+          卸载
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }

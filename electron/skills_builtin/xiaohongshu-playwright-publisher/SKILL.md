@@ -1,5 +1,5 @@
 ---
-name: 小红书发布助手 (Xiaohongshu Playwright Publisher)
+name: 小红书发布助手
 description: 通过 Playwright MCP 自动化小红书网页版图文发布流程，支持登录检测、人工登录等待、上传素材、填写内容并发布或存草稿。
 icon: assets/icon.svg
 aliases: xiaohongshu publisher, xiaohongshu playwright publisher, 小红书发布助手, 小红书发布, 小红书发帖助手, 小红书发笔记, 小红书图文发布
@@ -10,15 +10,18 @@ version: 1.0.0
 # 小红书 Playwright 发布助手
 
 ## 用途
+
 使用 Playwright MCP 自动化执行小红书创作者网页版图文发布流程。在同一浏览器会话里完成登录状态检测、素材上传、标题正文填写、标签设置，以及最终发布或存草稿。
 
 ## 触发条件
+
 - 用户明确点名该技能（例如“用小红书发布助手发这条笔记”）。
 - 任务语义明显是小红书网页端发帖、发布笔记、发布图文、种草内容发布或保存草稿。
 - 需要在浏览器里处理登录闸门，并在用户手动登录后继续发布流程。
 - 用户表达接近“发一条小红书”“帮我发帖到小红书”“去小红书创作者中心发布内容”“发笔记/发图文/种草”时也应触发。
 
 ## 执行步骤
+
 1. 启动并固定同一个浏览器标签页，访问 `https://creator.xiaohongshu.com/publish/publish`。
 2. 用 `browser_snapshot` 检查是否已登录；若未登录，提示用户在页面手动登录并每 5 秒轮询一次快照。
 3. 收集并校验发布输入：标题、正文、素材绝对路径（可选）、话题标签（可选）、最终动作（发布或存草稿）。
@@ -29,6 +32,7 @@ version: 1.0.0
 8. 返回简要结果：登录处理状态、填写字段摘要、最终动作和待人工处理项。
 
 ## 依赖工具
+
 - browser_snapshot
 - browser_navigate
 - browser_click
@@ -38,6 +42,7 @@ version: 1.0.0
 - browser_wait_for
 
 ## 失败回退
+
 - 未登录且长时间（例如 10 分钟）未完成手动登录：报告超时并询问是否继续等待。
 - 找不到目标控件：优先参考 `references/xiaohongshu-ui-cues.md` 的可见文案重试，再给出可操作报错。
 - 遇到弹窗或风险确认：先关闭或处理弹窗，再回到上一步继续；不要直接跳过校验。

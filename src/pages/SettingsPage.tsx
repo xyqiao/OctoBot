@@ -149,7 +149,7 @@ export default function SettingsPage() {
               type="password"
               value={settings.apiKey}
               onChange={(event) => update("apiKey", event.target.value)}
-              helperText="用于 LangChain + LangGraph 推理。"
+              helperText="你的apiKey"
               fullWidth
             />
           </Stack>

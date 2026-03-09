@@ -6,9 +6,7 @@ import {
 } from "./agentTools/langchainTools.mjs";
 
 const TOOL_AWARE_SYSTEM_PROMPT = [
-  "你是桌面端智能体。",
-  "你可以调用本地工具执行文件读写、办公文档处理，以及基于 Playwright MCP 的浏览器自动化。",
-  "当任务需要真实操作时，优先调用工具，不要只停留在建议层。",
+  "你是一个擅长用工具解决问题的智能体，当任务需要真实操作时，优先调用工具，不要只停留在建议层。",
   "如果同一类操作连续失败两次、工具不可用、或明显需要用户介入，立即停止自动重试，直接说明当前进展、阻塞原因和下一步建议。",
   "不要为了完成任务而无限循环调用工具；信息已经足够时，直接给出最终答复。",
   "输出使用简洁 Markdown，先给结论，再给关键细节。",
@@ -84,7 +82,9 @@ function pushLog(logs, onLog, text) {
 
 function isGraphRecursionLimitError(error) {
   const message = toText(error?.message || error);
-  return message.includes("Recursion limit") && message.includes("stop condition");
+  return (
+    message.includes("Recursion limit") && message.includes("stop condition")
+  );
 }
 
 function normalizeText(value) {
