@@ -58,7 +58,7 @@ function watchDistAndReload(win) {
       }, 120);
     });
   } catch (error) {
-    console.warn("[dev-local] Failed to watch dist folder:", error);
+    console.warn("[dev-local] 监听 dist 目录失败:", error);
   }
 }
 
@@ -85,7 +85,7 @@ async function withEnabledSkills(payload = {}) {
       enabledSkillSpecs,
     };
   } catch (error) {
-    console.warn("[main] Failed to load enabled skill specs:", error);
+    console.warn("[main] 加载已启用技能规格失败:", error);
     return normalizedPayload;
   }
 }
@@ -241,7 +241,7 @@ function shutdownResources() {
     try {
       taskScheduler.stop();
     } catch (error) {
-      console.error("[main] Failed to stop task scheduler:", error);
+      console.error("[main] 停止任务调度器失败:", error);
     }
   }
 
@@ -249,7 +249,7 @@ function shutdownResources() {
     try {
       taskDispatcher.stop();
     } catch (error) {
-      console.error("[main] Failed to stop task dispatcher:", error);
+      console.error("[main] 停止任务分发器失败:", error);
     }
   }
 
@@ -257,19 +257,19 @@ function shutdownResources() {
     try {
       storage.close();
     } catch (error) {
-      console.error("[main] Failed to close sqlite storage:", error);
+      console.error("[main] 关闭 SQLite 存储失败:", error);
     }
   }
 
   if (typeof shutdownPlaywrightMcp === "function") {
     void shutdownPlaywrightMcp().catch((error) => {
-      console.error("[main] Failed to shutdown Playwright MCP:", error);
+      console.error("[main] 关闭 Playwright MCP 失败:", error);
     });
   }
 
   if (typeof shutdownFilesystemMcp === "function") {
     void shutdownFilesystemMcp().catch((error) => {
-      console.error("[main] Failed to shutdown Filesystem MCP:", error);
+      console.error("[main] 关闭 Filesystem MCP 失败:", error);
     });
   }
 }
@@ -369,7 +369,7 @@ app
         logger: console,
       });
       void skillManager.init().catch((error) => {
-        console.error("[main] Failed to initialize skill manager:", error);
+        console.error("[main] 初始化技能管理器失败:", error);
       });
 
       const workerManager = new WorkerManager({
@@ -392,7 +392,7 @@ app
         onLog: (message) => console.info(message),
       }).catch((error) => {
         console.warn(
-          `[main] Playwright MCP startup failed: ${
+          `[main] Playwright MCP 启动失败: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
@@ -402,7 +402,7 @@ app
         baseDir: process.cwd(),
       }).catch((error) => {
         console.warn(
-          `[main] Filesystem MCP startup failed: ${
+          `[main] Filesystem MCP 启动失败: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
@@ -411,8 +411,8 @@ app
       taskScheduler.start();
       taskDispatcher.start();
     } catch (error) {
-      console.error("[main] Failed to initialize better-sqlite3.");
-      console.error("[main] Run: pnpm run rebuild:native");
+      console.error("[main] 初始化 better-sqlite3 失败。");
+      console.error("[main] 请执行：pnpm run rebuild:native");
       console.error(error);
       app.quit();
       return;
@@ -634,7 +634,7 @@ app
     });
   })
   .catch((error) => {
-    console.error("[main] Failed during app bootstrap:", error);
+    console.error("[main] 应用启动阶段失败:", error);
     app.quit();
   });
 

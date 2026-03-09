@@ -227,12 +227,12 @@ function resolveSkillRelativePath(skillRoot, relativePath) {
   }
 
   if (path.isAbsolute(raw)) {
-    throw new Error(`Skill path must be relative to skill root: ${raw}`);
+    throw new Error(`技能路径必须相对于技能根目录: ${raw}`);
   }
 
   const absolute = path.resolve(skillRoot, raw);
   if (!isPathWithinRoot(skillRoot, absolute)) {
-    throw new Error(`Skill path escapes skill root: ${raw}`);
+    throw new Error(`技能路径越过了技能根目录: ${raw}`);
   }
 
   return absolute;
@@ -309,7 +309,7 @@ async function parseSkillDirectory(skillRoot, options = {}) {
 
     if (missing.length > 0) {
       throw new Error(
-        `Invalid SKILL.md at ${skillMarkdownPath}, missing sections: ${missing.join(", ")}`,
+        `SKILL.md 无效，路径 ${skillMarkdownPath}，缺少章节: ${missing.join(", ")}`,
       );
     }
   }
@@ -334,7 +334,7 @@ async function parseSkillDirectory(skillRoot, options = {}) {
     try {
       await fs.access(iconPath);
     } catch {
-      throw new Error(`Skill icon does not exist: ${iconRelativePath}`);
+      throw new Error(`技能图标不存在: ${iconRelativePath}`);
     }
   }
 

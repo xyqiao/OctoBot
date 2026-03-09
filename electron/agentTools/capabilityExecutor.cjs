@@ -144,7 +144,7 @@ function assertPathAllowed(targetPath, context, purpose = "file access") {
   const allowed = allowedRoots.some((root) => isPathWithinRoot(targetPath, root));
   if (!allowed) {
     throw new Error(
-      `Path is outside allowed roots for ${purpose}: ${targetPath}. Allowed roots: ${allowedRoots.join(
+      `)}
         ", ",
       )}`,
     );
@@ -154,7 +154,7 @@ function assertPathAllowed(targetPath, context, purpose = "file access") {
 function resolveUserPath(targetPath, context, purpose = "file access") {
   const input = toSafeString(targetPath, "").trim();
   if (!input) {
-    throw new Error("Path is required.");
+    throw new Error("必须提供路径。");
   }
 
   const expanded = input.startsWith("~/")
@@ -198,7 +198,7 @@ function assertMcpToolSuccess(result, toolName) {
   const text = extractMcpTextContent(result);
   throw new Error(
     text ||
-      `Filesystem MCP tool "${toSafeString(toolName, "unknown")}" returned an error.`,
+      `Filesystem MCP 工具 "${toSafeString(toolName, "unknown")}" 返回了错误。`,
   );
 }
 
@@ -487,7 +487,7 @@ async function fileListDirectory(args, context) {
       const parsed = JSON.parse(treeText);
       treeNodes = Array.isArray(parsed) ? parsed : [];
     } catch {
-      throw new Error("filesystem MCP directory_tree returned invalid JSON.");
+      throw new Error("filesystem MCP 的 directory_tree 返回了无效 JSON。");
     }
     entries = [];
     flattenDirectoryTree(treeNodes, targetPath, entries, maxEntries);
@@ -569,7 +569,7 @@ async function officeReadDocument(args, context) {
     const sheetName = toSafeString(args.sheetName, workbook.SheetNames[0]);
     const worksheet = workbook.Sheets[sheetName];
     if (!worksheet) {
-      throw new Error(`Sheet "${sheetName}" not found.`);
+      throw new Error(`未找到工作表 "${sheetName}"。`);
     }
     const rows = xlsx.utils.sheet_to_json(worksheet, { defval: "" });
     return {
@@ -585,7 +585,7 @@ async function officeReadDocument(args, context) {
     return fileReadText(args, context);
   }
 
-  throw new Error(`Unsupported office document format: ${ext || "unknown"}`);
+  throw new Error(`不支持的 Office 文档格式: ${ext || "unknown"}`);
 }
 
 async function officeWriteDocument(args, context) {
@@ -679,7 +679,7 @@ async function officeWriteDocument(args, context) {
     );
   }
 
-  throw new Error(`Unsupported office document format for write: ${ext || "unknown"}`);
+  throw new Error(`写入时不支持的 Office 文档格式: ${ext || "unknown"}`);
 }
 
 const capabilityRegistry = [
@@ -729,7 +729,7 @@ function buildCapabilityLookup(registry) {
       continue;
     }
     if (handlers[name]) {
-      throw new Error(`Duplicate capability name: ${name}`);
+      throw new Error(`能力名称重复: ${name}`);
     }
 
     handlers[name] = handler;
@@ -744,7 +744,7 @@ function buildCapabilityLookup(registry) {
         continue;
       }
       if (handlers[alias]) {
-        throw new Error(`Duplicate capability alias: ${alias}`);
+        throw new Error(`能力别名重复: ${alias}`);
       }
       handlers[alias] = handler;
     }
@@ -763,7 +763,7 @@ async function runCapabilityCall(name, args = {}, options = {}) {
   const normalizedName = toSafeString(name, "").trim().toLowerCase();
   const handler = capabilityHandlers[normalizedName];
   if (!handler) {
-    throw new Error(`Unsupported capability: ${normalizedName || "<empty>"}`);
+    throw new Error(`不支持的能力: ${normalizedName || "<empty>"}`);
   }
 
   const baseDir = options.baseDir || process.cwd();

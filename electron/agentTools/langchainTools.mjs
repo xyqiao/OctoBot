@@ -178,7 +178,7 @@ export async function createLangChainTools(options = {}) {
     });
   } catch (error) {
     options?.onLog?.(
-      `[MCP/filesystem] Failed to load tool definitions: ${
+      `[MCP/filesystem] 加载工具定义失败: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
@@ -203,7 +203,7 @@ export async function createLangChainTools(options = {}) {
     });
   } catch (error) {
     options?.onLog?.(
-      `[MCP/playwright] Failed to load tool definitions: ${
+      `[MCP/playwright] 加载工具定义失败: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );

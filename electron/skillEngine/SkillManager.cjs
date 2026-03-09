@@ -197,7 +197,7 @@ class SkillManager {
         );
       } catch (error) {
         this.logger.warn?.(
-          `[skill-manager] Skip invalid builtin skill at ${skillRoot}: ${
+          `[skill-manager] 跳过无效的内置技能 ${skillRoot}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
@@ -316,7 +316,7 @@ class SkillManager {
         });
       } catch (error) {
         this.logger.warn?.(
-          `[skill-manager] Failed to parse enabled skill "${entry.displayName}": ${
+          `[skill-manager] 解析已启用技能 "${entry.displayName}" 失败: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
@@ -371,7 +371,7 @@ class SkillManager {
         return candidate;
       }
     }
-    throw new Error(`Unable to reserve install path for skill: ${skillName}`);
+    throw new Error(`无法为技能预留安装路径: ${skillName}`);
   }
 
   normalizeZipEntryPath(entryName) {
@@ -385,7 +385,7 @@ class SkillManager {
         continue;
       }
       if (name.startsWith("/") || name.startsWith("../") || name.includes("/../")) {
-        throw new Error(`Invalid archive entry path: ${name}`);
+        throw new Error(`压缩包条目路径无效: ${name}`);
       }
     }
   }
@@ -449,7 +449,7 @@ class SkillManager {
   async installBuiltinSkill(entry) {
     const sourcePath = entry.packagePath;
     if (!sourcePath || !(await pathExists(sourcePath))) {
-      throw new Error(`Builtin skill source path is missing: ${entry.displayName}`);
+      throw new Error(`内置技能源路径缺失: ${entry.displayName}`);
     }
 
     const installPath = await this.reserveInstallPath(entry.name);
@@ -479,7 +479,7 @@ class SkillManager {
   async installUploadedSkill(archiveBytes, fileName = "") {
     const buffer = this.toBuffer(archiveBytes);
     if (!buffer || buffer.length === 0) {
-      throw new Error("Uploaded skill archive is empty.");
+      throw new Error("上传的技能压缩包为空。");
     }
 
     const tempExtractDir = path.join(this.tempDir, `skill_extract_${makeId("tmp")}`);
@@ -489,7 +489,7 @@ class SkillManager {
       const zip = new AdmZip(buffer);
       const entries = zip.getEntries();
       if (entries.length === 0) {
-        throw new Error("Uploaded archive contains no files.");
+        throw new Error("上传的压缩包中不包含任何文件。");
       }
       this.validateZipEntries(entries);
 
@@ -497,7 +497,7 @@ class SkillManager {
 
       const detectedRoot = await this.findSkillRoot(tempExtractDir);
       if (!detectedRoot) {
-        throw new Error("SKILL.md not found in uploaded archive.");
+        throw new Error("上传的压缩包中未找到 SKILL.md。");
       }
 
       const parsed = await parseSkillDirectory(detectedRoot, { strict: true });
@@ -556,7 +556,7 @@ class SkillManager {
     if (skillId) {
       const entry = (await this.refreshCatalog()).find((item) => item.id === skillId);
       if (!entry) {
-        throw new Error(`Skill not found: ${skillId}`);
+        throw new Error(`未找到技能: ${skillId}`);
       }
       if (entry.installStatus === "installed") {
         return this.toPublicSkill(entry);
@@ -564,24 +564,24 @@ class SkillManager {
       if (entry.source === "builtin") {
         return this.installBuiltinSkill(entry);
       }
-      throw new Error(`Skill cannot be installed by id: ${skillId}`);
+      throw new Error(`该技能不能通过 id 安装: ${skillId}`);
     }
 
     if (payload.archiveBytes) {
       return this.installUploadedSkill(payload.archiveBytes, payload.fileName);
     }
 
-    throw new Error("Install payload requires either skillId or archiveBytes.");
+    throw new Error("安装参数必须提供 skillId 或 archiveBytes。");
   }
 
   async enableSkill(skillId) {
     const id = toSafeString(skillId, "").trim();
     if (!id) {
-      throw new Error("Skill id is required.");
+      throw new Error("必须提供技能 id。");
     }
     const updated = await this.updateEntryById(id, (current) => {
       if (current.installStatus !== "installed") {
-        throw new Error("Skill is not installed.");
+        throw new Error("该技能尚未安装。");
       }
       return {
         ...current,

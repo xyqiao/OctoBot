@@ -3,7 +3,10 @@ import type { ChatModelAdapter } from "@assistant-ui/react";
 import { appendMessage, refreshChatMemory } from "../../utils/db";
 import { runMultiAgentChatStream } from "../../utils/graphRuntime";
 import type { ChatMessage } from "../../types";
-import { parseAssistantResponse, toAssistantContentParts } from "./assistantResponseParser";
+import {
+  parseAssistantResponse,
+  toAssistantContentParts,
+} from "./assistantResponseParser";
 import { extractTextFromMessage } from "./attachmentUtils";
 import { makeId } from "./shared";
 import type { AssistantChatPanelProps } from "./types";
@@ -134,7 +137,7 @@ export function useChatModelAdapter({
             modelName: settings.modelName.trim() || "gpt-4o-mini",
             baseUrl: settings.baseUrl,
           }).catch((error) => {
-            console.warn("[chat-memory] Failed to refresh summary:", error);
+            console.warn("[聊天记忆] 刷新摘要失败:", error);
           });
         }
       },

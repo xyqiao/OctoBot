@@ -87,7 +87,7 @@ function withTimeout(promise, timeoutMs, label) {
   const ms = toTimeoutMs(timeoutMs);
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error(`MCP request timeout for method "${label}".`));
+      reject(new Error(`MCP 方法 "${label}" 请求超时。`));
     }, ms);
 
     promise.then(

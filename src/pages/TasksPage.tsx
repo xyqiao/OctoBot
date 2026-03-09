@@ -885,7 +885,7 @@ export default function TasksPage() {
               </Paper>
             </Stack>
           ) : (
-            <Typography>No task selected.</Typography>
+            <Typography>未选择任务。</Typography>
           )}
         </Box>
       </Stack>
