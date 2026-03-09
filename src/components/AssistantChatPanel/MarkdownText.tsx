@@ -71,6 +71,48 @@ function normalizePrismLanguage(language?: string) {
   return prismLanguageAliases[key] ?? key;
 }
 
+function createSyntaxTheme(mode: "light" | "dark") {
+  const baseTheme = mode === "dark" ? oneDark : oneLight;
+  const commentColor = mode === "dark" ? "#8f98a7" : "#64748b";
+
+  return {
+    ...baseTheme,
+    'code[class*="language-"]': {
+      ...baseTheme['code[class*="language-"]'],
+      background: "transparent",
+      textShadow: "none",
+    },
+    'pre[class*="language-"]': {
+      ...baseTheme['pre[class*="language-"]'],
+      background: "transparent",
+      textShadow: "none",
+      margin: 0,
+      padding: 0,
+    },
+    comment: {
+      ...baseTheme.comment,
+      color: commentColor,
+      textShadow: "none",
+      fontStyle: "normal",
+    },
+    prolog: {
+      ...baseTheme.prolog,
+      color: commentColor,
+      textShadow: "none",
+    },
+    doctype: {
+      ...baseTheme.doctype,
+      color: commentColor,
+      textShadow: "none",
+    },
+    cdata: {
+      ...baseTheme.cdata,
+      color: commentColor,
+      textShadow: "none",
+    },
+  };
+}
+
 const MarkdownSyntaxHighlighter = ({
   components,
   language,
@@ -79,6 +121,7 @@ const MarkdownSyntaxHighlighter = ({
   const theme = useTheme();
   const { Pre, Code } = components;
   const normalizedLanguage = normalizePrismLanguage(language);
+  const syntaxTheme = createSyntaxTheme(theme.palette.mode);
 
   if (!normalizedLanguage) {
     return (
@@ -91,14 +134,26 @@ const MarkdownSyntaxHighlighter = ({
   return (
     <ReactSyntaxHighlighter
       language={normalizedLanguage}
-      style={theme.palette.mode === "dark" ? oneDark : oneLight}
+      style={syntaxTheme}
       PreTag={Pre as never}
       CodeTag={Code as never}
+      codeTagProps={{
+        style: {
+          display: "block",
+          minWidth: "100%",
+          background: "transparent",
+          textShadow: "none",
+        },
+      }}
       customStyle={{
         margin: 0,
         borderTopLeftRadius: 0,
         borderTopRightRadius: 0,
-        background: theme.palette.mode === "dark" ? theme.appColors.consoleBg : theme.appColors.panel,
+        padding: "14px 16px",
+        background:
+          theme.palette.mode === "dark"
+            ? theme.appColors.panel
+            : theme.appColors.panel,
         border: `1px solid ${theme.appColors.border}`,
       }}
     >

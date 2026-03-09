@@ -187,6 +187,21 @@ body {
   line-height: 1.55;
 }
 
+.nexus-chat-shell .aui-md-th,
+.nexus-chat-shell .aui-md-td {
+  border-color: var(--app-border);
+}
+
+.nexus-chat-shell .aui-md-th {
+  border-top: 1px solid var(--app-border);
+  border-bottom: 1px solid var(--app-border);
+  border-left: 1px solid var(--app-border);
+}
+
+.nexus-chat-shell .aui-md-th:last-child {
+  border-right: 1px solid var(--app-border);
+}
+
 .nexus-chat-shell .aui-assistant-action-bar-root,
 .nexus-chat-shell .aui-branch-picker-root {
   min-height: 24px;
