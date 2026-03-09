@@ -3,7 +3,7 @@ name: 小红书发布助手
 description: 通过 Playwright MCP 自动化小红书网页版图文发布流程，支持登录检测、人工登录等待、上传素材、填写内容并发布或存草稿。
 icon: assets/icon.svg
 aliases: xiaohongshu publisher, xiaohongshu playwright publisher, 小红书发布助手, 小红书发布, 小红书发帖助手, 小红书发笔记, 小红书图文发布
-keywords: 小红书, 发, 发布, 发帖, 发笔记, 发布笔记, 笔记, 图文, 小红书图文, 图文发布, 发布内容, 创作者中心, 小红书创作者中心, 种草, 登录检测, 手动登录等待, playwright mcp, browser_snapshot
+keywords: 小红书, 发, 发布, 发帖, 发笔记, 发布笔记, 笔记, 图文, 小红书图文, 图文发布, 发布内容, 创作者中心, 小红书创作者中心, 种草, 登录检测, 手动登录等待, playwright mcp, playwright_mcp_browser_snapshot
 version: 1.0.0
 ---
 
@@ -23,7 +23,7 @@ version: 1.0.0
 ## 执行步骤
 
 1. 启动并固定同一个浏览器标签页，访问 `https://creator.xiaohongshu.com/publish/publish`。
-2. 用 `browser_snapshot` 检查是否已登录；若未登录，提示用户在页面手动登录并每 5 秒轮询一次快照。
+2. 用 `playwright_mcp_browser_snapshot` 检查是否已登录；若未登录，提示用户在页面手动登录并每 5 秒轮询一次快照。
 3. 收集并校验发布输入：标题、正文、素材绝对路径（可选）、话题标签（可选）、最终动作（发布或存草稿）。
 4. 进入编辑器后按需上传素材，填写标题和正文，补齐话题标签和其他元数据。
 5. 操作前后都重新抓取快照，检查上传进度、必填项缺失、风控弹窗等异常。
@@ -33,13 +33,13 @@ version: 1.0.0
 
 ## 依赖工具
 
-- browser_snapshot
-- browser_navigate
-- browser_click
-- browser_fill_form
-- browser_type
-- browser_file_upload
-- browser_wait_for
+- playwright_mcp_browser_snapshot
+- playwright_mcp_browser_navigate
+- playwright_mcp_browser_click
+- playwright_mcp_browser_fill_form
+- playwright_mcp_browser_type
+- playwright_mcp_browser_file_upload
+- playwright_mcp_browser_wait_for
 
 ## 失败回退
 

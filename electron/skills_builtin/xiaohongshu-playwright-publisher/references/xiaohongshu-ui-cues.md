@@ -27,7 +27,7 @@
 
 1. 打开 `https://creator.xiaohongshu.com`
 2. 点击可见入口文案，如 `发布`、`创作`、`发布笔记`
-3. 每次跳转后重新抓取 `browser_snapshot` 再继续
+3. 每次跳转后重新抓取 `playwright_mcp_browser_snapshot` 再继续
 
 ## 常见中断
 

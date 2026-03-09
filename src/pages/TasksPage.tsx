@@ -140,12 +140,12 @@ export default function TasksPage() {
 
   const payloadPlaceholder = useMemo(() => {
     if (createTaskType === "file_ops") {
-      return '{"toolCalls":[{"name":"read_text_file","args":{"path":"./README.md"}}]}';
+      return '{"toolCalls":[{"name":"filesystem_mcp_read_file","args":{"path":"./README.md"}}]}';
     }
     if (createTaskType === "office_doc") {
       return '{"toolCalls":[{"name":"office_read_document","args":{"path":"./report.xlsx","sheetName":"Sheet1"}}]}';
     }
-    return '{"toolCalls":[{"name":"list_directory","args":{"path":"./","maxEntries":50}}]}';
+    return '{"toolCalls":[{"name":"filesystem_mcp_list_directory","args":{"path":"./"}}]}';
   }, [createTaskType]);
 
   const activeTask = useMemo(
@@ -987,7 +987,7 @@ export default function TasksPage() {
               minRows={8}
               fullWidth
               placeholder={payloadPlaceholder}
-              helperText="支持 payload.toolCalls 或 payload.operations。文件工具建议使用 read_text_file、write_file、list_directory（由 filesystem MCP 提供）；办公工具为 office_read_document、office_write_document。可选 payload.allowedRoots 限制目录。"
+              helperText="支持 payload.toolCalls 或 payload.operations。文件工具建议使用 filesystem_mcp_read_file、filesystem_mcp_write_file、filesystem_mcp_list_directory；办公工具为 office_read_document、office_write_document。可选 payload.allowedRoots 限制目录。"
               sx={{
                 "& textarea": {
                   fontFamily: "Consolas, Menlo, monospace",

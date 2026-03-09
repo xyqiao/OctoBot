@@ -41,13 +41,23 @@ function normalizeToolDescription(value, fallbackPrefix, name) {
   );
 }
 
+function toPrefixedMcpToolName(serverName, toolName) {
+  const server = toSafeString(serverName, "").trim().toLowerCase();
+  const name = toSafeString(toolName, "").trim();
+  if (!server || !name) {
+    return name;
+  }
+  return `${server}_mcp_${name}`;
+}
+
 async function appendMcpTools(tools, loader) {
   const existingNames = new Set(tools.map((item) => item.name));
   const definitions = await loader.list();
 
   for (const definition of definitions) {
-    const toolName = toSafeString(definition?.name, "").trim();
-    if (!toolName || existingNames.has(toolName)) {
+    const rawToolName = toSafeString(definition?.name, "").trim();
+    const toolName = toPrefixedMcpToolName(loader.server, rawToolName);
+    if (!rawToolName || !toolName || existingNames.has(toolName)) {
       continue;
     }
     existingNames.add(toolName);
@@ -55,7 +65,7 @@ async function appendMcpTools(tools, loader) {
     tools.push(
       tool(
         async (input) => {
-          const result = await loader.call(toolName, normalizeObject(input));
+          const result = await loader.call(rawToolName, normalizeObject(input));
           return {
             server: loader.server,
             toolName,
@@ -67,7 +77,7 @@ async function appendMcpTools(tools, loader) {
           description: normalizeToolDescription(
             definition?.description,
             loader.label,
-            toolName,
+            rawToolName,
           ),
           schema: z.object({}).passthrough(),
         },
@@ -234,7 +244,7 @@ export function listCapabilityTools() {
   );
 
   const filesystemTools = getCachedFilesystemMcpTools().map((item) => ({
-    name: item.name,
+    name: toPrefixedMcpToolName("filesystem", item.name),
     description: normalizeToolDescription(
       item.description,
       "Filesystem MCP",
@@ -242,7 +252,7 @@ export function listCapabilityTools() {
     ),
   }));
   const playwrightTools = getCachedPlaywrightMcpTools().map((item) => ({
-    name: item.name,
+    name: toPrefixedMcpToolName("playwright", item.name),
     description: normalizeToolDescription(
       item.description,
       "Playwright MCP",
