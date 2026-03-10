@@ -598,6 +598,17 @@ app
     });
 
     ipcMain.handle("db:bootstrap", () => storage.bootstrapData());
+
+    ipcMain.handle("agent:run:listByTaskRun", (_event, taskRunId) =>
+      storage.listAgentRunsByTaskRun(taskRunId),
+    );
+    ipcMain.handle("agent:run:steps", (_event, agentRunId) =>
+      storage.listAgentStepsByRun(agentRunId),
+    );
+    ipcMain.handle("agent:run:toolCalls", (_event, agentRunId) =>
+      storage.listToolCallsByRun(agentRunId),
+    );
+
     ipcMain.handle("db:listChats", () => storage.listChats());
     ipcMain.handle("db:createChat", () => storage.createChat());
     ipcMain.handle("db:renameChat", (_event, chatId, title) =>

@@ -124,6 +124,7 @@ class SkillManager {
       triggers: Array.isArray(entry.triggers)
         ? uniqueStrings(entry.triggers)
         : [],
+      policy: entry && typeof entry === "object" ? entry.policy || null : null,
       createdAt,
       updatedAt,
     };
@@ -152,6 +153,7 @@ class SkillManager {
       installPath: normalized.installPath,
       version: normalized.version,
       triggers: normalized.triggers,
+      policy: normalized.policy || null,
       updatedAt: normalized.updatedAt,
       createdAt: normalized.createdAt,
     };
@@ -193,6 +195,7 @@ class SkillManager {
               ...spec.triggers.aliases,
               ...spec.triggers.keywords,
             ]),
+            policy: spec.policy || null,
           }),
         );
       } catch (error) {

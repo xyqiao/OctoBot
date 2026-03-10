@@ -1,4 +1,6 @@
 const { runCapabilityCall } = require("../agentTools/capabilityExecutor.cjs");
+const path = require("path");
+const { pathToFileURL } = require("url");
 
 function send(message) {
   if (process.send) {
@@ -31,6 +33,11 @@ function createAbortError() {
 }
 
 let busyRunId = null;
+
+async function getAgentRuntime() {
+  const runtimeUrl = pathToFileURL(path.join(__dirname, "..", "agentRuntime.mjs")).href;
+  return import(runtimeUrl);
+}
 let shuttingDown = false;
 const canceledRunIds = new Set();
 const cancelReasons = new Map();
@@ -172,6 +179,21 @@ function sendLog(runId, level, phase, message, meta = {}) {
   });
 }
 
+
+async function executeAgentTask(runId, task, context) {
+  const payload = normalizeObject(task.payload);
+  const runtime = await getAgentRuntime();
+  const result = await runtime.runMultiAgentChat({
+    prompt: toSafeString(payload.prompt || task.description || ""),
+    apiKey: toSafeString(payload.apiKey || ""),
+    modelName: toSafeString(payload.modelName || ""),
+    baseUrl: toSafeString(payload.baseUrl || ""),
+    enabledSkillSpecs: normalizeArray(payload.enabledSkillSpecs),
+    onLog: (message) => sendLog(runId, "info", "agent", message),
+  });
+  return result;
+}
+
 async function executeRun(payload) {
   const runId = payload.runId;
   const task = normalizeObject(payload.execution?.task);
@@ -191,6 +213,24 @@ async function executeRun(payload) {
       { taskType: task.type || "custom", callCount: taskCalls.length },
     );
     sendProgress(runId, 5);
+
+    if (task.type === "agent_task") {
+      sendLog(runId, "info", "execute", "Executing agent task via LangGraph.");
+      const result = await executeAgentTask(runId, task, { runId });
+      sendProgress(runId, 95);
+      sendLog(runId, "info", "finalize", "Agent task finalized successfully.");
+      sendProgress(runId, 100);
+      send({
+        type: "completed",
+        runId,
+        result: {
+          summary: "Executed agent task.",
+          agentResult: result,
+          completedAt: Date.now(),
+        },
+      });
+      return;
+    }
 
     if (taskCalls.length === 0) {
       throw new Error(

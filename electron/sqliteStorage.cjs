@@ -180,8 +180,13 @@ function summarizeChatTitle(content) {
   return `${firstSentence.slice(0, maxLen).trim()}...`;
 }
 
-const taskTypes = new Set(["file_ops", "office_doc", "custom"]);
-const taskLifecycleStatuses = new Set(["draft", "active", "paused", "terminated"]);
+const taskTypes = new Set(["file_ops", "office_doc", "custom", "agent_task"]);
+const taskLifecycleStatuses = new Set([
+  "draft",
+  "active",
+  "paused",
+  "terminated",
+]);
 const taskScheduleTypes = new Set(["manual", "once", "cron"]);
 const taskRunStatuses = new Set([
   "queued",
@@ -279,7 +284,9 @@ function normalizeTaskSchedule(input, createdAt) {
 
   if (type === "cron") {
     const cronExpr = normalizeOptionalText(schedule.cronExpr);
-    const nextRunAt = cronExpr ? computeNextCronRunAt(cronExpr, createdAt) : null;
+    const nextRunAt = cronExpr
+      ? computeNextCronRunAt(cronExpr, createdAt)
+      : null;
     return {
       type,
       runAt: null,
@@ -469,6 +476,59 @@ function ensureSchema(db) {
       updated_at INTEGER NOT NULL,
       FOREIGN KEY (task_id) REFERENCES task_definition(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS agent_run (
+      id TEXT PRIMARY KEY,
+      task_run_id TEXT NOT NULL,
+      trace_id TEXT,
+      status TEXT NOT NULL,
+      summary TEXT,
+      started_at INTEGER,
+      ended_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (task_run_id) REFERENCES task_run(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_step (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_run_id TEXT NOT NULL,
+      agent_name TEXT NOT NULL,
+      step_index INTEGER NOT NULL,
+      input_text TEXT,
+      output_text TEXT,
+      status TEXT NOT NULL,
+      ts INTEGER NOT NULL,
+      meta_json TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (agent_run_id) REFERENCES agent_run(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS tool_call (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_run_id TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      input_json TEXT NOT NULL DEFAULT '{}',
+      output_json TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL,
+      elapsed_ms INTEGER,
+      ts INTEGER NOT NULL,
+      FOREIGN KEY (agent_run_id) REFERENCES agent_run(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS artifact (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_run_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      path TEXT NOT NULL,
+      meta_json TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (agent_run_id) REFERENCES agent_run(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_run_task ON agent_run(task_run_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_agent_step_run ON agent_step(agent_run_id, ts);
+    CREATE INDEX IF NOT EXISTS idx_tool_call_run ON tool_call(agent_run_id, ts);
+    CREATE INDEX IF NOT EXISTS idx_artifact_run ON artifact(agent_run_id, created_at DESC);
 
     CREATE TABLE IF NOT EXISTS task_run_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -723,6 +783,41 @@ function createStorage(userDataDir) {
     insertTaskRunLog: db.prepare(
       `INSERT INTO task_run_log (run_id, ts, level, phase, message, meta_json)
        VALUES (@runId, @ts, @level, @phase, @message, @metaJson)`,
+    ),
+    insertAgentRun: db.prepare(
+      `INSERT INTO agent_run (
+         id, task_run_id, trace_id, status, summary, started_at, ended_at, created_at, updated_at
+       ) VALUES (
+         @id, @taskRunId, @traceId, @status, @summary, @startedAt, @endedAt, @createdAt, @updatedAt
+       )`,
+    ),
+    updateAgentRunStatus: db.prepare(
+      `UPDATE agent_run
+       SET status = ?, summary = ?, ended_at = ?, updated_at = ?
+       WHERE id = ?`,
+    ),
+    insertAgentStep: db.prepare(
+      `INSERT INTO agent_step (
+         agent_run_id, agent_name, step_index, input_text, output_text, status, ts, meta_json
+       ) VALUES (
+         @agentRunId, @agentName, @stepIndex, @inputText, @outputText, @status, @ts, @metaJson
+       )`,
+    ),
+    insertToolCall: db.prepare(
+      `INSERT INTO tool_call (
+         agent_run_id, tool_name, input_json, output_json, status, elapsed_ms, ts
+       ) VALUES (
+         @agentRunId, @toolName, @inputJson, @outputJson, @status, @elapsedMs, @ts
+       )`,
+    ),
+    listAgentRunsByTaskRun: db.prepare(
+      `SELECT * FROM agent_run WHERE task_run_id = ? ORDER BY created_at DESC`,
+    ),
+    listAgentStepsByRun: db.prepare(
+      `SELECT * FROM agent_step WHERE agent_run_id = ? ORDER BY ts ASC`,
+    ),
+    listToolCallsByRun: db.prepare(
+      `SELECT * FROM tool_call WHERE agent_run_id = ? ORDER BY ts ASC`,
     ),
     listTaskRunLogsByRun: db.prepare(
       "SELECT * FROM task_run_log WHERE run_id = ? ORDER BY ts ASC LIMIT ?",
@@ -1152,10 +1247,7 @@ function createStorage(userDataDir) {
 
   function cancelRunImmediately(runId, reason, timestamp = now()) {
     const code = "RUN_CANCELED";
-    const message = normalizeNonEmptyText(
-      reason,
-      "Run canceled by operator.",
-    );
+    const message = normalizeNonEmptyText(reason, "Run canceled by operator.");
     const result = queries.updateTaskRunCanceled.run(
       timestamp,
       timestamp,
@@ -1181,13 +1273,9 @@ function createStorage(userDataDir) {
   }
 
   function createTaskDefinition(input = {}) {
-    const normalizedInput =
-      input && typeof input === "object" ? input : {};
+    const normalizedInput = input && typeof input === "object" ? input : {};
     const timestamp = now();
-    const taskId = normalizeNonEmptyText(
-      normalizedInput.id,
-      makeId("taskdef"),
-    );
+    const taskId = normalizeNonEmptyText(normalizedInput.id, makeId("taskdef"));
     const schedule = normalizeTaskSchedule(normalizedInput.schedule, timestamp);
 
     const payload = {
@@ -1196,7 +1284,9 @@ function createStorage(userDataDir) {
       description: normalizeNonEmptyText(normalizedInput.description, ""),
       taskType: normalizeTaskType(normalizedInput.taskType),
       payloadJson: normalizeJson(normalizedInput.payload, {}),
-      lifecycleStatus: normalizeLifecycleStatus(normalizedInput.lifecycleStatus),
+      lifecycleStatus: normalizeLifecycleStatus(
+        normalizedInput.lifecycleStatus,
+      ),
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -1236,7 +1326,9 @@ function createStorage(userDataDir) {
     }
 
     if (task.lifecycle_status === "paused") {
-      throw new Error("Cannot run a paused task. Start the task before running.");
+      throw new Error(
+        "Cannot run a paused task. Start the task before running.",
+      );
     }
 
     return enqueueTaskRun(taskId, runOptions);
@@ -1300,7 +1392,10 @@ function createStorage(userDataDir) {
     }
 
     const requestCancel = db.transaction(() => {
-      const updated = queries.updateTaskRunCancelRequested.run(timestamp, runId);
+      const updated = queries.updateTaskRunCancelRequested.run(
+        timestamp,
+        runId,
+      );
       if (updated.changes === 0) {
         return false;
       }
@@ -1345,7 +1440,11 @@ function createStorage(userDataDir) {
     const signaledRunIds = [];
 
     const updateLifecycle = db.transaction(() => {
-      queries.updateTaskDefinitionLifecycleStatus.run(nextStatus, timestamp, taskId);
+      queries.updateTaskDefinitionLifecycleStatus.run(
+        nextStatus,
+        timestamp,
+        taskId,
+      );
       if (nextStatus === "terminated") {
         queries.updateTaskScheduleNextRunAt.run(null, taskId);
       }
@@ -1398,7 +1497,10 @@ function createStorage(userDataDir) {
     const normalizedLimit = Number.isFinite(Number(limit))
       ? Math.max(1, Math.min(500, Math.floor(Number(limit))))
       : 20;
-    const dueRows = queries.listDueTaskSchedules.all(timestamp, normalizedLimit);
+    const dueRows = queries.listDueTaskSchedules.all(
+      timestamp,
+      normalizedLimit,
+    );
     const createdRuns = [];
 
     const enqueueDue = db.transaction(() => {
@@ -1696,6 +1798,70 @@ function createStorage(userDataDir) {
     saveSettings,
     close,
     getDbPath: () => dbPath,
+    createAgentRun: (payload) => {
+      const nowTs = now();
+      const row = {
+        id: payload.id,
+        taskRunId: payload.taskRunId,
+        traceId: payload.traceId || null,
+        status: payload.status || "running",
+        summary: payload.summary || null,
+        startedAt: payload.startedAt || nowTs,
+        endedAt: payload.endedAt || null,
+        createdAt: payload.createdAt || nowTs,
+        updatedAt: payload.updatedAt || nowTs,
+      };
+      queries.insertAgentRun.run(row);
+      return row;
+    },
+    updateAgentRunStatus: (id, status, summary, endedAt) => {
+      const nowTs = now();
+      queries.updateAgentRunStatus.run(
+        status,
+        summary || null,
+        endedAt || nowTs,
+        nowTs,
+        id,
+      );
+      return true;
+    },
+    appendAgentStep: (payload) => {
+      const row = {
+        agentRunId: payload.agentRunId,
+        agentName: payload.agentName || "agent",
+        stepIndex: Number.isFinite(Number(payload.stepIndex))
+          ? Number(payload.stepIndex)
+          : 0,
+        inputText: payload.inputText || null,
+        outputText: payload.outputText || null,
+        status: payload.status || "completed",
+        ts: payload.ts || now(),
+        metaJson: JSON.stringify(payload.meta || {}),
+      };
+      queries.insertAgentStep.run(row);
+      return row;
+    },
+    appendToolCall: (payload) => {
+      const row = {
+        agentRunId: payload.agentRunId,
+        toolName: payload.toolName,
+        inputJson: JSON.stringify(payload.input || {}),
+        outputJson: JSON.stringify(payload.output || {}),
+        status: payload.status || "success",
+        elapsedMs: Number.isFinite(Number(payload.elapsedMs))
+          ? Number(payload.elapsedMs)
+          : null,
+        ts: payload.ts || now(),
+      };
+      queries.insertToolCall.run(row);
+      return row;
+    },
+    listAgentRunsByTaskRun: (taskRunId) =>
+      queries.listAgentRunsByTaskRun.all(taskRunId),
+    listAgentStepsByRun: (agentRunId) =>
+      queries.listAgentStepsByRun.all(agentRunId),
+    listToolCallsByRun: (agentRunId) =>
+      queries.listToolCallsByRun.all(agentRunId),
   };
 }
 

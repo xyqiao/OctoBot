@@ -1,17 +1,34 @@
-import { createAgent } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import {
+  HumanMessage,
+  SystemMessage,
+  isAIMessage,
+} from "@langchain/core/messages";
+import { Annotation, StateGraph, START, END } from "@langchain/langgraph";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
 import {
   createLangChainTools,
   listCapabilityTools,
 } from "./agentTools/langchainTools.mjs";
 
-const TOOL_AWARE_SYSTEM_PROMPT = [
-  "你是一个擅长用工具解决问题的智能体，当任务需要真实操作时，优先调用工具，不要只停留在建议层。",
-  "如果同一类操作连续失败两次、工具不可用、或明显需要用户介入，立即停止自动重试，直接说明当前进展、阻塞原因和下一步建议。",
-  "不要为了完成任务而无限循环调用工具；信息已经足够时，直接给出最终答复。",
+const PLANNER_SYSTEM_PROMPT = [
+  "你是任务规划智能体，负责把用户目标拆解为清晰、可执行的步骤。",
+  "输出要求：用简洁中文列出步骤，优先考虑可通过工具完成的操作。",
+  "避免空泛建议，不要执行工具调用。",
+].join("\n");
+
+const EXECUTOR_SYSTEM_PROMPT = [
+  "你是任务执行智能体，必须遵循既定计划，优先使用工具完成真实操作。",
+  "工具连续失败两次、工具不可用、或明显需要用户介入时，停止重试并说明阻塞原因。",
+  "不要无限循环调用工具；信息足够时直接进入收敛。",
+].join("\n");
+
+const VERIFIER_SYSTEM_PROMPT = [
+  "你是结果验证智能体，负责检查执行结果的完整性与一致性。",
+  "如有缺口，给出明确原因与下一步建议；如已满足，输出最终答复。",
   "输出使用简洁 Markdown，先给结论，再给关键细节。",
 ].join("\n");
+
 
 const AGENT_RECURSION_LIMIT = 50;
 const SUMMARY_MAX_COMPLETION_TOKENS = 900;
@@ -97,8 +114,11 @@ function pushLog(logs, onLog, text) {
 
 function isGraphRecursionLimitError(error) {
   const message = toText(error?.message || error);
+  const name = typeof error?.name === "string" ? error.name : "";
   return (
-    message.includes("Recursion limit") && message.includes("stop condition")
+    name === "GraphRecursionError" ||
+    message.includes("GRAPH_RECURSION_LIMIT") ||
+    (message.includes("Recursion limit") && message.includes("stop condition"))
   );
 }
 
@@ -139,6 +159,9 @@ function normalizeSkillSpec(raw) {
   const tools = Array.isArray(source.tools) ? source.tools : [];
   const fallback = Array.isArray(source.fallback) ? source.fallback : [];
   const steps = Array.isArray(source.steps) ? source.steps : [];
+  const policy = source.policy && typeof source.policy === "object"
+    ? source.policy
+    : null;
 
   return {
     id: toText(source.id || "").trim(),
@@ -150,6 +173,7 @@ function normalizeSkillSpec(raw) {
     tools: uniqueStrings(tools.map(normalizeSkillToolName).filter(Boolean)),
     fallback: uniqueStrings(fallback),
     steps: uniqueStrings(steps),
+    policy,
     triggers: {
       aliases: uniqueStrings(aliases),
       keywords: uniqueStrings(keywords),
@@ -286,17 +310,31 @@ function buildSkillPromptPatch(selectedSkills = []) {
   }
 
   const sections = selectedSkills.map((skill, index) => {
+    const policyTools = Array.isArray(skill?.policy?.allowedTools)
+      ? skill.policy.allowedTools
+      : [];
+    const policySteps = Array.isArray(skill?.policy?.requiredSteps)
+      ? skill.policy.requiredSteps
+      : [];
+
     return [
       `${index + 1}. ${skill.displayName || skill.name}`,
       skill.description ? `- 描述: ${skill.description}` : "",
       skill.purpose ? `- 用途: ${skill.purpose}` : "",
       skill.trigger ? `- 触发条件: ${skill.trigger}` : "",
       skill.steps.length > 0
-        ? `- 执行步骤:\n${skill.steps.map((step, stepIndex) => `  ${stepIndex + 1}) ${step}`).join("\n")}`
+        ? `- 执行步骤:
+${skill.steps.map((step, stepIndex) => `  ${stepIndex + 1}) ${step}`).join("\n")}`
+        : "",
+      policySteps.length > 0
+        ? `- 策略步骤:
+${policySteps.map((step, stepIndex) => `  ${stepIndex + 1}) ${step}`).join("\n")}`
         : "",
       skill.tools.length > 0 ? `- 依赖工具: ${skill.tools.join(", ")}` : "",
+      policyTools.length > 0 ? `- 策略工具: ${policyTools.join(", ")}` : "",
       skill.fallback.length > 0
-        ? `- 失败回退:\n${skill.fallback.map((item) => `  - ${item}`).join("\n")}`
+        ? `- 失败回退:
+${skill.fallback.map((item) => `  - ${item}`).join("\n")}`
         : "",
     ]
       .filter(Boolean)
@@ -313,11 +351,32 @@ function buildSkillPromptPatch(selectedSkills = []) {
 function collectAllowedToolsFromSkills(selectedSkills = []) {
   const tools = uniqueStrings(
     selectedSkills
-      .flatMap((skill) => (Array.isArray(skill.tools) ? skill.tools : []))
+      .flatMap((skill) => {
+        const explicitTools = Array.isArray(skill.tools) ? skill.tools : [];
+        const policyTools = Array.isArray(skill?.policy?.allowedTools)
+          ? skill.policy.allowedTools
+          : [];
+        return [...explicitTools, ...policyTools];
+      })
       .map(normalizeSkillToolName)
       .filter(Boolean),
   );
   return tools;
+}
+
+function collectRequiredStepsFromSkills(selectedSkills = []) {
+  const steps = uniqueStrings(
+    selectedSkills
+      .flatMap((skill) => {
+        const explicitSteps = Array.isArray(skill.steps) ? skill.steps : [];
+        const policySteps = Array.isArray(skill?.policy?.requiredSteps)
+          ? skill.policy.requiredSteps
+          : [];
+        return [...explicitSteps, ...policySteps];
+      })
+      .filter(Boolean),
+  );
+  return steps;
 }
 
 function createModel(apiKey, modelName = "gpt-4o-mini", baseUrl = "", extraOptions = {}) {
@@ -414,7 +473,163 @@ function buildToolEventLog(event) {
   return "";
 }
 
-async function runToolAwareAgent({
+function extractPlanText(raw) {
+  const text = toText(raw).trim();
+  if (!text) {
+    return "";
+  }
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced && fenced[1]) {
+    return fenced[1].trim();
+  }
+  return text;
+}
+
+function tagAgentMessage(message, name) {
+  if (!message || typeof message !== "object") {
+    return message;
+  }
+  message.name = name;
+  if (message.lc_kwargs && typeof message.lc_kwargs === "object") {
+    message.lc_kwargs.name = name;
+  }
+  return message;
+}
+
+function mergeConfigTag(config, tag) {
+  const tags = Array.isArray(config?.tags) ? config.tags : [];
+  return {
+    ...config,
+    tags: [...tags, tag],
+  };
+}
+
+function eventHasTag(event, tag) {
+  const tags = Array.isArray(event?.tags)
+    ? event.tags
+    : Array.isArray(event?.metadata?.tags)
+      ? event.metadata.tags
+      : [];
+  return tags.includes(tag);
+}
+
+function buildMultiAgentGraph({ model, tools, skillPatch, requiredSteps = [] }) {
+  const GraphState = Annotation.Root({
+    input: Annotation(),
+    plan: Annotation(),
+    finalAnswer: Annotation(),
+    logs: Annotation({
+      reducer: (left = [], right) => {
+        const next = Array.isArray(right) ? right : right ? [right] : [];
+        return left.concat(next);
+      },
+      default: () => [],
+    }),
+    messages: Annotation({
+      reducer: (left = [], right) => {
+        if (!right) {
+          return left;
+        }
+        const next = Array.isArray(right) ? right : [right];
+        return left.concat(next);
+      },
+      default: () => [],
+    }),
+  });
+
+  const plannerPrompt = [PLANNER_SYSTEM_PROMPT, skillPatch]
+    .filter(Boolean)
+    .join("\n\n");
+  const executorPromptBase = [EXECUTOR_SYSTEM_PROMPT, skillPatch]
+    .filter(Boolean)
+    .join("\n\n");
+  const requiredStepsBlock = Array.isArray(requiredSteps) && requiredSteps.length > 0
+    ? `必须遵循以下步骤：\n${requiredSteps.map((step, index) => `  ${index + 1}) ${step}`).join("\n")}`
+    : "";
+  const verifierPromptBase = [VERIFIER_SYSTEM_PROMPT, skillPatch]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const modelWithTools =
+    typeof model?.bindTools === "function" ? model.bindTools(tools) : model;
+
+  const plannerNode = async (state, config) => {
+    const response = await model.invoke(
+      [new SystemMessage(plannerPrompt), new HumanMessage(state.input)],
+      mergeConfigTag(config, "agent:planner"),
+    );
+    tagAgentMessage(response, "planner");
+    const planText = extractPlanText(response?.content);
+    return {
+      messages: [response],
+      plan: planText,
+      logs: planText ? "[Planner] 已生成执行计划。" : "[Planner] 未生成计划。",
+    };
+  };
+
+  const executorNode = async (state, config) => {
+    const planBlock = state.plan ? `当前计划：
+${state.plan}` : "";
+    const executorPrompt = [executorPromptBase, requiredStepsBlock, planBlock]
+      .filter(Boolean)
+      .join("\n\n");
+    const response = await modelWithTools.invoke(
+      [new SystemMessage(executorPrompt), ...state.messages],
+      mergeConfigTag(config, "agent:executor"),
+    );
+    tagAgentMessage(response, "executor");
+    return {
+      messages: [response],
+    };
+  };
+
+  const verifierNode = async (state, config) => {
+    const planBlock = state.plan ? `执行计划：
+${state.plan}` : "";
+    const verifierPrompt = [verifierPromptBase, planBlock]
+      .filter(Boolean)
+      .join("\n\n");
+    const response = await model.invoke(
+      [new SystemMessage(verifierPrompt), ...state.messages],
+      mergeConfigTag(config, "agent:verifier"),
+    );
+    tagAgentMessage(response, "verifier");
+    const finalAnswer = toText(response?.content).trim();
+    return {
+      messages: [response],
+      finalAnswer,
+      logs: finalAnswer ? "[Verifier] 已生成最终答复。" : "[Verifier] 未生成最终答复。",
+    };
+  };
+
+  const toolNode = new ToolNode(tools);
+  const shouldContinue = (state) => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    if (lastMessage && isAIMessage(lastMessage)) {
+      const toolCalls = Array.isArray(lastMessage.tool_calls)
+        ? lastMessage.tool_calls
+        : [];
+      if (toolCalls.length > 0) {
+        return "tools";
+      }
+    }
+    return "verifier";
+  };
+
+  return new StateGraph(GraphState)
+    .addNode("planner", plannerNode)
+    .addNode("executor", executorNode)
+    .addNode("tools", toolNode)
+    .addNode("verifier", verifierNode)
+    .addEdge(START, "planner")
+    .addEdge("planner", "executor")
+    .addConditionalEdges("executor", shouldContinue, ["tools", "verifier"])
+    .addEdge("tools", "executor")
+    .addEdge("verifier", END)
+    .compile();
+}
+
+async function runLangGraphAgent({
   prompt,
   model,
   signal,
@@ -428,6 +643,7 @@ async function runToolAwareAgent({
     enabledSkillSpecs,
   );
   const allowedToolNames = collectAllowedToolsFromSkills(selectedSkills);
+  const requiredSteps = collectRequiredStepsFromSkills(selectedSkills);
   const skillPatch = buildSkillPromptPatch(selectedSkills);
   const finalPrompt = prompt;
 
@@ -454,7 +670,6 @@ async function runToolAwareAgent({
     const supportedTools = listCapabilityTools()
       .map((item) => `- ${item.name}: ${item.description}`)
       .join("\n");
-
     const fallbackAnswer = [
       "[Mock-Agent] API Key 未配置，当前无法执行真实模型推理。",
       "请在设置中配置 modelName/baseUrl/apiKey 后重试。",
@@ -488,31 +703,26 @@ async function runToolAwareAgent({
     },
   });
 
-  const agentPrompt = [TOOL_AWARE_SYSTEM_PROMPT, skillPatch]
-    .filter(Boolean)
-    .join("\n\n");
-  const agent = createAgent({
+  const graph = buildMultiAgentGraph({
     model,
     tools,
-    prompt: agentPrompt,
+    skillPatch,
+    requiredSteps,
   });
 
-  pushLog(logs, onLog, "[INFO] 工具智能体已启动（token 流式）。");
+  pushLog(logs, onLog, "[INFO] 多智能体 LangGraph 已启动（token 流式）。");
 
   const stateInput = {
-    messages: [
-      {
-        role: "user",
-        content: finalPrompt,
-      },
-    ],
+    input: finalPrompt,
+    messages: [new HumanMessage(finalPrompt)],
   };
 
   let answer = "";
-  let latestModelOutput = "";
+  let latestVerifierOutput = "";
+  let finalAnswer = "";
 
   try {
-    const eventStream = agent.streamEvents(stateInput, {
+    const eventStream = graph.streamEvents(stateInput, {
       signal,
       version: "v2",
       recursionLimit: AGENT_RECURSION_LIMIT,
@@ -524,6 +734,9 @@ async function runToolAwareAgent({
       }
 
       if (event.event === "on_chat_model_stream") {
+        if (!eventHasTag(event, "agent:verifier")) {
+          continue;
+        }
         const delta = extractEventTextChunk(event);
         if (delta) {
           answer += delta;
@@ -533,11 +746,28 @@ async function runToolAwareAgent({
       }
 
       if (event.event === "on_chat_model_end") {
+        if (!eventHasTag(event, "agent:verifier")) {
+          continue;
+        }
         const finalText = extractEventFinalText(event);
         if (finalText) {
-          latestModelOutput = finalText;
+          latestVerifierOutput = finalText;
         }
         continue;
+      }
+
+      if (event.event === "on_chain_end") {
+        const output = event?.data?.output;
+        if (output && typeof output === "object" && output.finalAnswer) {
+          finalAnswer = toText(output.finalAnswer).trim();
+        }
+        if (output && Array.isArray(output.logs)) {
+          for (const item of output.logs) {
+            if (typeof item === "string" && item.trim()) {
+              pushLog(logs, onLog, item);
+            }
+          }
+        }
       }
 
       if (
@@ -562,8 +792,12 @@ async function runToolAwareAgent({
       `[WARN] 智能体达到最大推理步数（${AGENT_RECURSION_LIMIT}）后已停止自动重试。`,
     );
 
-    if (!answer && latestModelOutput) {
-      answer = latestModelOutput;
+    if (!answer && latestVerifierOutput) {
+      answer = latestVerifierOutput;
+    }
+
+    if (!answer && finalAnswer) {
+      answer = finalAnswer;
     }
 
     if (!answer) {
@@ -578,45 +812,25 @@ async function runToolAwareAgent({
     }
   }
 
-  if (!answer && latestModelOutput) {
-    answer = latestModelOutput;
+  if (!answer && latestVerifierOutput) {
+    answer = latestVerifierOutput;
+    onChunk?.(answer);
+  }
+
+  if (!answer && finalAnswer) {
+    answer = finalAnswer;
     onChunk?.(answer);
   }
 
   if (!answer) {
-    try {
-      const result = await agent.invoke(stateInput, {
-        signal,
-        recursionLimit: AGENT_RECURSION_LIMIT,
-      });
-      answer = extractAssistantAnswer(result?.messages || []);
-      if (answer) {
-        onChunk?.(answer);
-      }
-    } catch (error) {
-      if (!isGraphRecursionLimitError(error)) {
-        throw error;
-      }
-
-      pushLog(
-        logs,
-        onLog,
-        `[WARN] 智能体在回退调用阶段达到最大推理步数（${AGENT_RECURSION_LIMIT}）。`,
-      );
-
-      if (!answer) {
-        answer = [
-          "任务已停止自动重试。",
-          "",
-          `原因：智能体在 ${AGENT_RECURSION_LIMIT} 步内没有收敛到最终结果。`,
-          "请查看工具日志定位失败步骤，或缩小任务范围后重试。",
-        ].join("\n");
-        onChunk?.(answer);
-      }
-    }
+    answer = [
+      "多智能体执行完成，但未生成可用的最终答复。",
+      "请查看工具日志或缩小任务范围后重试。",
+    ].join("\n");
+    onChunk?.(answer);
   }
 
-  pushLog(logs, onLog, "[INFO] 工具智能体执行完成。");
+  pushLog(logs, onLog, "[INFO] 多智能体执行完成。");
   return {
     answer,
     logs,
@@ -634,7 +848,7 @@ export async function runMultiAgentChatStream({
   onLog,
 }) {
   const model = createModel(apiKey, modelName, baseUrl);
-  return runToolAwareAgent({
+  return runLangGraphAgent({
     prompt,
     model,
     enabledSkillSpecs,

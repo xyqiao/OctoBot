@@ -257,6 +257,47 @@ function uniqueStrings(items) {
   return result;
 }
 
+function normalizePolicyValue(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => toSafeString(item, "").trim()).filter(Boolean);
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  return value;
+}
+
+function normalizePolicySection(sectionText) {
+  if (!sectionText) {
+    return {};
+  }
+  const lines = sectionText.split(/\r?\n/);
+  const policy = {};
+  for (const line of lines) {
+    const raw = line.trim();
+    if (!raw) {
+      continue;
+    }
+    const match = raw.match(/^[\-*+]\s*([^:]+):\s*(.+)$/);
+    if (!match) {
+      continue;
+    }
+    const key = normalizeSectionKey(match[1]);
+    const value = parseFrontmatterValue(match[2]);
+    policy[key] = normalizePolicyValue(value);
+  }
+  return policy;
+}
+
 async function parseSkillDirectory(skillRoot, options = {}) {
   const strict = options.strict !== false;
   const normalizedRoot = path.resolve(skillRoot);
@@ -298,6 +339,19 @@ async function parseSkillDirectory(skillRoot, options = {}) {
     "回退",
     "异常处理",
   ]);
+
+  const policySection = resolveSectionContent(sections, [
+    "策略",
+    "policy",
+    "policies",
+  ]);
+  const policyFromSection = normalizePolicySection(policySection);
+  const policy = {
+    allowedTools: normalizePolicyValue(metadata.allowedTools || metadata.allowed_tools || policyFromSection.allowedtools),
+    requiredSteps: normalizePolicyValue(metadata.requiredSteps || metadata.required_steps || policyFromSection.requiredsteps),
+    fallbackStrategy: normalizePolicyValue(metadata.fallbackStrategy || metadata.fallback_strategy || policyFromSection.fallbackstrategy),
+    agentConstraints: normalizePolicyValue(metadata.agentConstraints || metadata.agent_constraints || policyFromSection.agentconstraints),
+  };
 
   if (strict) {
     const missing = [];
@@ -362,6 +416,7 @@ async function parseSkillDirectory(skillRoot, options = {}) {
     steps: sectionContentToList(steps),
     tools: sectionContentToList(tools),
     fallback: sectionContentToList(fallback),
+    policy,
     triggers: {
       aliases,
       keywords,

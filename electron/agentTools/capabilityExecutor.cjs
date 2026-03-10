@@ -143,10 +143,9 @@ function assertPathAllowed(targetPath, context, purpose = "file access") {
 
   const allowed = allowedRoots.some((root) => isPathWithinRoot(targetPath, root));
   if (!allowed) {
+    const rootsPreview = allowedRoots.map((root) => `"${root}"`).join(", ");
     throw new Error(
-      `)}
-        ", ",
-      )}`,
+      `路径不在允许范围内: ${targetPath}. 允许目录: ${rootsPreview || "(none)"}.`,
     );
   }
 }
@@ -682,7 +681,33 @@ async function officeWriteDocument(args, context) {
   throw new Error(`写入时不支持的 Office 文档格式: ${ext || "unknown"}`);
 }
 
-const capabilityRegistry = [
+function normalizeCapabilityRegistry(registry = []) {
+  const normalized = [];
+  for (const item of Array.isArray(registry) ? registry : []) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const name = toSafeString(item?.name, "").trim().toLowerCase();
+    const description = toSafeString(item?.description, "").trim();
+    const handler = typeof item?.handler === "function" ? item.handler : null;
+    const aliases = Array.isArray(item?.aliases)
+      ? item.aliases.map((alias) => toSafeString(alias, "").trim().toLowerCase()).filter(Boolean)
+      : [];
+    if (!name || !handler) {
+      continue;
+    }
+    normalized.push({
+      ...item,
+      name,
+      description,
+      handler,
+      aliases,
+    });
+  }
+  return normalized;
+}
+
+const capabilityRegistry = normalizeCapabilityRegistry([
   {
     name: "file_read_text",
     description: "Read a local text-like file and return its content.",
@@ -713,7 +738,7 @@ const capabilityRegistry = [
     handler: officeWriteDocument,
     aliases: ["write_document"],
   },
-];
+]);
 
 function buildCapabilityLookup(registry) {
   const handlers = Object.create(null);
@@ -855,8 +880,16 @@ function listCapabilityDefinitions() {
   return capabilityDefinitions.map((item) => ({ ...item }));
 }
 
+function listCapabilityRegistry() {
+  return capabilityRegistry.map((item) => ({
+    ...item,
+    handler: undefined,
+  }));
+}
+
 module.exports = {
   runCapabilityCall,
   runCapabilityCalls,
   listCapabilityDefinitions,
+  listCapabilityRegistry,
 };

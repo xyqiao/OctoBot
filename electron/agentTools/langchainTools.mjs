@@ -3,10 +3,9 @@ import { z } from "zod";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const {
-  runCapabilityCall,
-  listCapabilityDefinitions,
-} = require("./capabilityExecutor.cjs");
+const { listTools, listToolHandlers } = require("./toolRegistry.cjs");
+
+const { runCapabilityCall } = require("./capabilityExecutor.cjs");
 const {
   listPlaywrightMcpTools,
   getCachedPlaywrightMcpTools,
@@ -130,30 +129,24 @@ function createToolRunner(name, options) {
 }
 
 export async function createLangChainTools(options = {}) {
-  const tools = [
-    tool(createToolRunner("office_read_document", options), {
-      name: "office_read_document",
-      description: "读取办公文档，支持 .docx/.xlsx/.xls/.csv/.txt/.md/.json。",
-      schema: z.object({
-        path: z.string().describe("文档路径"),
-        sheetName: z.string().optional().describe("Excel 工作表名称（可选）"),
-        maxChars: z.number().int().positive().optional().describe("文本最大返回字符数"),
+  const tools = [];
+  const allowed = Array.isArray(options?.allowedToolNames)
+    ? options.allowedToolNames
+    : [];
+
+  const toolHandlers = listToolHandlers({
+    allowedNames: allowed,
+  }).filter((item) => item?.handler);
+
+  for (const entry of toolHandlers) {
+    tools.push(
+      tool(createToolRunner(entry.name, options), {
+        name: entry.name,
+        description: entry.description || `Tool: ${entry.name}`,
+        schema: z.object({}).passthrough(),
       }),
-    }),
-    tool(createToolRunner("office_write_document", options), {
-      name: "office_write_document",
-      description: "写入办公文档，支持 .docx/.xlsx/.xls/.csv/.txt/.md/.json。",
-      schema: z.object({
-        path: z.string().describe("文档路径"),
-        title: z.string().optional().describe("DOCX 标题"),
-        content: z.any().optional().describe("写入内容"),
-        paragraphs: z.array(z.string()).optional().describe("DOCX 段落列表"),
-        rows: z.array(z.any()).optional().describe("表格数据，二维数组或对象数组"),
-        sheetName: z.string().optional().describe("Excel 工作表名称"),
-        prettyJson: z.boolean().optional().describe("JSON 是否格式化"),
-      }),
-    }),
-  ];
+    );
+  }
 
   try {
     await appendMcpTools(tools, {
@@ -209,18 +202,15 @@ export async function createLangChainTools(options = {}) {
     );
   }
 
-  const allowed = Array.isArray(options?.allowedToolNames)
-    ? options.allowedToolNames
-    : [];
+  if (allowed.length === 0) {
+    return tools;
+  }
+
   const allowedSet = new Set(
     allowed
       .map((item) => String(item).trim())
       .filter(Boolean),
   );
-
-  if (allowedSet.size === 0) {
-    return tools;
-  }
 
   const filtered = tools.filter((toolItem) => allowedSet.has(toolItem.name));
   if (filtered.length > 0) {
@@ -236,12 +226,7 @@ export async function createLangChainTools(options = {}) {
 }
 
 export function listCapabilityTools() {
-  const baseTools = listCapabilityDefinitions().filter(
-    (item) =>
-      item.name !== "file_read_text" &&
-      item.name !== "file_write_text" &&
-      item.name !== "file_list_directory",
-  );
+  const baseTools = listTools({});
 
   const filesystemTools = getCachedFilesystemMcpTools().map((item) => ({
     name: toPrefixedMcpToolName("filesystem", item.name),
