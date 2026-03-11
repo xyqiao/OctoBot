@@ -1,7 +1,6 @@
 import { Divider, Paper } from "@mui/material";
 import type { AppSidebarProps } from "./types";
 import ChatListSection from "./ChatListSection";
-import SidebarFooter from "./SidebarFooter";
 import SidebarHeader from "./SidebarHeader";
 import SidebarNavList from "./SidebarNavList";
 import { sidebarStyle } from "./SidebarStyles";
@@ -34,7 +33,6 @@ export default function AppSidebar({
         onRenameChat={onRenameChat}
         onDeleteChat={onDeleteChat}
       />
-      <SidebarFooter view={view} onSelectView={onSelectView} />
     </Paper>
   );
 }

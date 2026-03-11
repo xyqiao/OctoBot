@@ -1,4 +1,4 @@
-import { List, Typography } from "@mui/material";
+import { Box, List, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useMemo, useState } from "react";
 import type { MouseEvent } from "react";
@@ -54,31 +54,33 @@ export default function ChatListSection({
   }
 
   return (
-    <>
+    <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <Typography sx={{ fontWeight: 700, color: theme.appColors.textMuted, fontSize: 15, mb: 1.1 }}>
         对话记录
       </Typography>
-      <List sx={{ py: 0, flex: 1 }}>
-        {chats.map((chat) => (
-          <ChatListItem
-            key={chat.id}
-            chat={chat}
-            selected={view === "chat" && selectedChatId === chat.id}
-            showMenuButton={hoveredChatId === chat.id || menuChatId === chat.id}
-            onSelect={(chatId) => {
-              onSelectView("chat");
-              onSelectChat(chatId);
-            }}
-            onHoverStart={(chatId) => {
-              setHoveredChatId(chatId);
-            }}
-            onHoverEnd={(chatId) => {
-              setHoveredChatId((current) => (current === chatId ? "" : current));
-            }}
-            onMenuButtonClick={handleMenuButtonClick}
-          />
-        ))}
-      </List>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 0.5 }}>
+        <List sx={{ py: 0 }}>
+          {chats.map((chat) => (
+            <ChatListItem
+              key={chat.id}
+              chat={chat}
+              selected={view === "chat" && selectedChatId === chat.id}
+              showMenuButton={hoveredChatId === chat.id || menuChatId === chat.id}
+              onSelect={(chatId) => {
+                onSelectView("chat");
+                onSelectChat(chatId);
+              }}
+              onHoverStart={(chatId) => {
+                setHoveredChatId(chatId);
+              }}
+              onHoverEnd={(chatId) => {
+                setHoveredChatId((current) => (current === chatId ? "" : current));
+              }}
+              onMenuButtonClick={handleMenuButtonClick}
+            />
+          ))}
+        </List>
+      </Box>
       <ChatItemMenu
         anchorEl={menuAnchorEl}
         open={menuOpen}
@@ -87,7 +89,6 @@ export default function ChatListSection({
         onRenameChat={onRenameChat}
         onDeleteChat={onDeleteChat}
       />
-    </>
+    </Box>
   );
 }
-

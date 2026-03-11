@@ -149,7 +149,16 @@ export default function App() {
 
   if (loading) {
     return (
-      <Box sx={{ height: "100vh", width: "100%", p: 0, backgroundColor: theme.appColors.shell, display: "grid", placeItems: "center" }}>
+      <Box
+        sx={{
+          height: "100vh",
+          width: "100%",
+          p: 0,
+          backgroundColor: theme.appColors.shell,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
         <Stack direction="row" spacing={2} alignItems="center">
           <CircularProgress size={28} />
           <Typography>Loading Nexus AI workspace...</Typography>
@@ -159,7 +168,14 @@ export default function App() {
   }
 
   return (
-    <Box sx={{ height: "100vh", width: "100%", p: 0, backgroundColor: theme.appColors.shell }}>
+    <Box
+      sx={{
+        height: "100vh",
+        width: "100%",
+        p: 0,
+        backgroundColor: theme.appColors.shell,
+      }}
+    >
       <Paper
         elevation={0}
         sx={{
@@ -184,7 +200,18 @@ export default function App() {
             onDeleteChat={handleDeleteOpen}
           />
 
-          <Paper elevation={0} sx={{ flex: 1, borderRadius: 0, backgroundColor: theme.appColors.shellElevated, minWidth: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              flex: 1,
+              borderRadius: 0,
+              backgroundColor: theme.appColors.shellElevated,
+              minWidth: 0,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             {view === "chat" && (
               <ChatPage
                 key={selectedChatId || "no-chat"}
