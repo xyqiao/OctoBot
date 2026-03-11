@@ -30,7 +30,13 @@ const VERIFIER_SYSTEM_PROMPT = [
 ].join("\n");
 
 
-const AGENT_RECURSION_LIMIT = 50;
+const AGENT_RECURSION_LIMIT = 5000;
+const STALL_POLICY = {
+  maxRepeatedToolErrors: 2,
+  maxNoProgressExecutions: 4,
+  maxRepeatedExecutorOutputs: 3,
+  maxRepeatedVerifierOutputs: 3,
+};
 const SUMMARY_MAX_COMPLETION_TOKENS = 900;
 const SUMMARY_SYSTEM_PROMPT = [
   "你负责把一段持续协作会话压缩成长期记忆摘要。",
@@ -124,6 +130,33 @@ function isGraphRecursionLimitError(error) {
 
 function normalizeText(value) {
   return toText(value).toLowerCase();
+}
+
+function normalizeSignalText(value) {
+  return normalizeText(value).replace(/\s+/g, " ").trim();
+}
+
+function buildToolSignature(event) {
+  const name = toText(event?.name || "").trim() || "unknown_tool";
+  const input = event?.data?.input ? event.data.input : {};
+  return `${name}:${summarizeJson(input, 180)}`;
+}
+
+function extractToolCallsFromEvent(event) {
+  const output = event?.data?.output;
+  const message = output?.message || output?.generations?.[0]?.message || output;
+  const toolCalls = Array.isArray(message?.tool_calls)
+    ? message.tool_calls
+    : Array.isArray(output?.tool_calls)
+      ? output.tool_calls
+      : [];
+  return toolCalls;
+}
+
+function isAbortError(error) {
+  const name = typeof error?.name === "string" ? error.name : "";
+  const message = toText(error?.message || error);
+  return name === "AbortError" || message.includes("aborted") || message.includes("ABORT");
 }
 
 function normalizeSkillToolName(value) {
@@ -720,10 +753,28 @@ async function runLangGraphAgent({
   let answer = "";
   let latestVerifierOutput = "";
   let finalAnswer = "";
+  let stallReason = "";
+  let lastToolSignature = "";
+  let repeatedToolErrors = 0;
+  let lastExecutorSignature = "";
+  let repeatedExecutorOutputs = 0;
+  let lastVerifierSignature = "";
+  let repeatedVerifierOutputs = 0;
+  let noProgressExecutions = 0;
+
+  const abortController = new AbortController();
+  if (signal) {
+    if (signal.aborted) {
+      abortController.abort();
+    } else if (typeof signal.addEventListener === "function") {
+      signal.addEventListener("abort", () => abortController.abort(), { once: true });
+    }
+  }
+  const runSignal = abortController.signal;
 
   try {
     const eventStream = graph.streamEvents(stateInput, {
-      signal,
+      signal: runSignal,
       version: "v2",
       recursionLimit: AGENT_RECURSION_LIMIT,
     });
@@ -751,7 +802,21 @@ async function runLangGraphAgent({
         }
         const finalText = extractEventFinalText(event);
         if (finalText) {
+          const normalized = normalizeSignalText(finalText);
+          if (normalized && normalized === lastVerifierSignature) {
+            repeatedVerifierOutputs += 1;
+          } else {
+            repeatedVerifierOutputs = 0;
+            lastVerifierSignature = normalized;
+          }
           latestVerifierOutput = finalText;
+        }
+        if (
+          repeatedVerifierOutputs >= STALL_POLICY.maxRepeatedVerifierOutputs &&
+          !stallReason
+        ) {
+          stallReason = "验证结果重复且无新进展";
+          abortController?.abort();
         }
         continue;
       }
@@ -761,12 +826,40 @@ async function runLangGraphAgent({
         if (output && typeof output === "object" && output.finalAnswer) {
           finalAnswer = toText(output.finalAnswer).trim();
         }
+        const toolCalls = extractToolCallsFromEvent(event);
+        if (eventHasTag(event, "agent:executor")) {
+          if (toolCalls.length === 0) {
+            const executorText = extractEventFinalText(event);
+            const signature = normalizeSignalText(executorText || "");
+            if (signature && signature === lastExecutorSignature) {
+              repeatedExecutorOutputs += 1;
+            } else {
+              repeatedExecutorOutputs = 0;
+              lastExecutorSignature = signature;
+            }
+            noProgressExecutions += 1;
+          } else {
+            noProgressExecutions = 0;
+            repeatedExecutorOutputs = 0;
+          }
+        }
         if (output && Array.isArray(output.logs)) {
           for (const item of output.logs) {
             if (typeof item === "string" && item.trim()) {
               pushLog(logs, onLog, item);
             }
           }
+        }
+        if (
+          repeatedExecutorOutputs >= STALL_POLICY.maxRepeatedExecutorOutputs &&
+          !stallReason
+        ) {
+          stallReason = "执行输出重复，未触发新工具";
+          abortController?.abort();
+        }
+        if (noProgressExecutions >= STALL_POLICY.maxNoProgressExecutions && !stallReason) {
+          stallReason = "连续多轮无有效进展";
+          abortController?.abort();
         }
       }
 
@@ -775,6 +868,26 @@ async function runLangGraphAgent({
         event.event === "on_tool_end" ||
         event.event === "on_tool_error"
       ) {
+        if (event.event === "on_tool_error") {
+          const signature = buildToolSignature(event);
+          if (signature && signature === lastToolSignature) {
+            repeatedToolErrors += 1;
+          } else {
+            repeatedToolErrors = 1;
+            lastToolSignature = signature;
+          }
+          if (repeatedToolErrors >= STALL_POLICY.maxRepeatedToolErrors && !stallReason) {
+            stallReason = "工具重复失败，可能需要人工介入";
+            abortController?.abort();
+          }
+        }
+
+        if (event.event === "on_tool_end") {
+          repeatedToolErrors = 0;
+          noProgressExecutions = 0;
+          repeatedVerifierOutputs = 0;
+        }
+
         const logLine = buildToolEventLog(event);
         if (logLine) {
           pushLog(logs, onLog, logLine);
@@ -782,15 +895,19 @@ async function runLangGraphAgent({
       }
     }
   } catch (error) {
-    if (!isGraphRecursionLimitError(error)) {
+    if (!isGraphRecursionLimitError(error) && !isAbortError(error)) {
       throw error;
     }
 
-    pushLog(
-      logs,
-      onLog,
-      `[WARN] 智能体达到最大推理步数（${AGENT_RECURSION_LIMIT}）后已停止自动重试。`,
-    );
+    if (stallReason) {
+      pushLog(logs, onLog, `[WARN] 智能体因停滞检测停止：${stallReason}`);
+    } else if (isGraphRecursionLimitError(error)) {
+      pushLog(
+        logs,
+        onLog,
+        `[WARN] 智能体达到最大推理步数（${AGENT_RECURSION_LIMIT}）后已停止自动重试。`,
+      );
+    }
 
     if (!answer && latestVerifierOutput) {
       answer = latestVerifierOutput;
@@ -801,10 +918,13 @@ async function runLangGraphAgent({
     }
 
     if (!answer) {
+      const reasonText = stallReason
+        ? `原因：检测到${stallReason}。`
+        : `原因：智能体在 ${AGENT_RECURSION_LIMIT} 步内没有收敛到最终结果。`;
       answer = [
         "任务已停止自动重试。",
         "",
-        `原因：智能体在 ${AGENT_RECURSION_LIMIT} 步内没有收敛到最终结果。`,
+        reasonText,
         "常见原因包括工具连续失败、页面状态不满足，或当前步骤需要人工介入。",
         "请根据上面的工具日志检查阻塞点后重试。",
       ].join("\n");
