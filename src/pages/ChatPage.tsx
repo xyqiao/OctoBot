@@ -93,7 +93,7 @@ export default function ChatPage({
       </Box>
 
       <Box
-        sx={{ flex: 1, minHeight: 0, backgroundColor: theme.appColors.shell }}
+        sx={{ flex: 1, minHeight: 0 }}
       >
         {!settings ? (
           <Box sx={{ display: "grid", placeItems: "center", height: "100%" }}>
@@ -105,7 +105,6 @@ export default function ChatPage({
               className="nexus-chat-shell"
               sx={{
                 height: "100%",
-                backgroundColor: theme.appColors.panelSoft,
               }}
             >
               <AssistantChatPanel

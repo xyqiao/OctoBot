@@ -119,7 +119,7 @@ export function createAppTheme(mode: ThemeMode): Theme {
     palette: {
       mode,
       primary: {
-        main: mode === "dark" ? "#93a4b8" : "#1573e6",
+        main: "#1573e6",
       },
       success: {
         main: mode === "dark" ? "#8fa78c" : "#2e7d32",
@@ -186,9 +186,9 @@ export function createAppTheme(mode: ThemeMode): Theme {
             "--app-console-text": colors.consoleText,
             "--app-avatar-solid": colors.avatarSolid,
             "--app-input-bg": colors.inputBg,
-            "--aui-primary": mode === "dark" ? "214 16% 66%" : "211 83% 50%",
+            "--aui-primary": "211 83% 50%",
             "--aui-primary-foreground": "0 0% 100%",
-            "--aui-ring": mode === "dark" ? "214 16% 66%" : "211 83% 50%",
+            "--aui-ring": "211 83% 50%",
             "--aui-border": mode === "dark" ? "220 6% 28%" : "214 35% 88%",
             "--aui-input": mode === "dark" ? "220 6% 28%" : "214 35% 88%",
             "--aui-muted": mode === "dark" ? "220 4% 20%" : "216 36% 95%",

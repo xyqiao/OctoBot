@@ -323,123 +323,144 @@ export default function SkillsPage() {
   }
 
   return (
-    <Box sx={{ p: 3, overflowY: "auto", height: "100%" }}>
-      <Stack spacing={2.4}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Stack direction="row" spacing={1.2} alignItems="center">
-            <Typography sx={{ fontSize: 28, fontWeight: 700 }}>技能</Typography>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          px: 3,
+          py: 3,
+          backgroundColor: "inherit",
+        }}
+      >
+        <Stack spacing={2.4}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Stack direction="row" spacing={1.2} alignItems="center">
+              <Typography sx={{ fontSize: 28, fontWeight: 700 }}>技能</Typography>
+            </Stack>
+
+            <Stack direction="row" spacing={1.2}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip,application/zip"
+                style={{ display: "none" }}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    void handleUpload(file);
+                  }
+                }}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<UploadFileRoundedIcon />}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadPending}
+                sx={{ textTransform: "none" }}
+              >
+                导入
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshRoundedIcon />}
+                onClick={() => {
+                  void handleRefresh();
+                }}
+                sx={{ textTransform: "none" }}
+              >
+                刷新
+              </Button>
+            </Stack>
           </Stack>
 
-          <Stack direction="row" spacing={1.2}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".zip,application/zip"
-              style={{ display: "none" }}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  void handleUpload(file);
-                }
-              }}
-            />
-            <Button
-              variant="outlined"
-              startIcon={<UploadFileRoundedIcon />}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadPending}
-              sx={{ textTransform: "none" }}
-            >
-              导入
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshRoundedIcon />}
-              onClick={() => {
-                void handleRefresh();
-              }}
-              sx={{ textTransform: "none" }}
-            >
-              刷新
-            </Button>
-          </Stack>
+          <Divider />
         </Stack>
+      </Box>
 
-        {errorText && (
-          <Typography sx={{ color: "error.main", fontSize: 13 }}>
-            {errorText}
-          </Typography>
-        )}
-
-        <Divider />
-
-        <Box>
-          <Typography sx={{ fontWeight: 700, mb: 1.2 }}>已安装</Typography>
-          {installedSkills.length === 0 ? (
-            <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
-              暂无已安装技能。
+      <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 3 }}>
+        <Stack spacing={2.4} sx={{ width: 800, maxWidth: "100%", mx: "auto" }}>
+          {errorText && (
+            <Typography sx={{ color: "error.main", fontSize: 13 }}>
+              {errorText}
             </Typography>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gap: 2,
-                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              }}
-            >
-              {installedSkills.map((skill) => (
-                <SkillCard
-                  key={`installed:${skill.id}`}
-                  skill={skill}
-                  variant="installed"
-                  pending={actionPendingId === skill.id || uploadPending}
-                  onInstall={handleInstall}
-                  onToggleEnabled={handleToggleEnabled}
-                  onOpenMenu={(event, targetSkill) => {
-                    setMenuAnchorEl(event.currentTarget);
-                    setMenuSkill(targetSkill);
-                  }}
-                />
-              ))}
-            </Box>
           )}
-        </Box>
 
-        <Divider />
+          <Box>
+            <Typography sx={{ fontWeight: 700, mb: 1.2 }}>已安装</Typography>
+            {installedSkills.length === 0 ? (
+              <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
+                暂无已安装技能。
+              </Typography>
+            ) : (
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(2, minmax(0, 1fr))",
+                  },
+                }}
+              >
+                {installedSkills.map((skill) => (
+                  <SkillCard
+                    key={`installed:${skill.id}`}
+                    skill={skill}
+                    variant="installed"
+                    pending={actionPendingId === skill.id || uploadPending}
+                    onInstall={handleInstall}
+                    onToggleEnabled={handleToggleEnabled}
+                    onOpenMenu={(event, targetSkill) => {
+                      setMenuAnchorEl(event.currentTarget);
+                      setMenuSkill(targetSkill);
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
 
-        <Box>
-          <Typography sx={{ fontWeight: 700, mb: 1.2 }}>推荐</Typography>
-          {recommendedSkills.length === 0 ? (
-            <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
-              暂无推荐技能。
-            </Typography>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gap: 2,
-                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              }}
-            >
-              {recommendedSkills.map((skill) => (
-                <SkillCard
-                  key={`recommended:${skill.id}`}
-                  skill={skill}
-                  variant="recommended"
-                  pending={actionPendingId === skill.id || uploadPending}
-                  onInstall={handleInstall}
-                  onToggleEnabled={handleToggleEnabled}
-                  onOpenMenu={() => undefined}
-                />
-              ))}
-            </Box>
-          )}
-        </Box>
-      </Stack>
+          <Divider />
+
+          <Box>
+            <Typography sx={{ fontWeight: 700, mb: 1.2 }}>推荐</Typography>
+            {recommendedSkills.length === 0 ? (
+              <Typography sx={{ color: theme.appColors.textMuted, fontSize: 14 }}>
+                暂无推荐技能。
+              </Typography>
+            ) : (
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(2, minmax(0, 1fr))",
+                  },
+                }}
+              >
+                {recommendedSkills.map((skill) => (
+                  <SkillCard
+                    key={`recommended:${skill.id}`}
+                    skill={skill}
+                    variant="recommended"
+                    pending={actionPendingId === skill.id || uploadPending}
+                    onInstall={handleInstall}
+                    onToggleEnabled={handleToggleEnabled}
+                    onOpenMenu={() => undefined}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+        </Stack>
+      </Box>
 
       <Menu
         anchorEl={menuAnchorEl}

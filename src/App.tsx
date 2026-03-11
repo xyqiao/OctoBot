@@ -205,7 +205,7 @@ export default function App() {
             sx={{
               flex: 1,
               borderRadius: 0,
-              backgroundColor: theme.appColors.shellElevated,
+              backgroundColor: theme.appColors.shell,
               minWidth: 0,
               overflow: "hidden",
               display: "flex",

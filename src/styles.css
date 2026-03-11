@@ -41,7 +41,7 @@ body {
 }
 
 .nexus-chat-shell .aui-thread-root {
-  background: var(--app-panel-soft);
+  background: var(--app-shell);
 }
 
 .nexus-chat-shell .aui-thread-viewport {
@@ -52,7 +52,7 @@ body {
 
 .nexus-chat-shell .aui-thread-viewport-footer {
   padding-bottom: 12px;
-  background: var(--app-panel-soft);
+  background: var(--app-shell);
 }
 
 .nexus-chat-shell .aui-user-message-content {

@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
-import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
 import {
   Box,
-  Button,
   CircularProgress,
+  Divider,
   FormControlLabel,
-  Paper,
   Stack,
   Switch,
   TextField,
@@ -44,18 +38,12 @@ export default function SettingsPage() {
     };
   }, []);
 
-  async function persistSettings() {
-    if (!settings) return;
-
+  async function persistSettings(nextSettings: UserSettings) {
     try {
-      await saveSettings(settings);
-      setMode(settings.themeMode);
+      await saveSettings(nextSettings);
+      setMode(nextSettings.themeMode);
       const latest = await getSettings();
       setSettings(latest);
-
-      if (latest.desktopNotifications) {
-        await window.desktopApi?.notify("Nexus AI", "Configurations saved.");
-      }
     } catch (error) {
       console.error("Failed to save settings:", error);
       await window.desktopApi?.notify(
@@ -63,12 +51,6 @@ export default function SettingsPage() {
         "Failed to save configurations.",
       );
     }
-  }
-
-  async function restoreSettings() {
-    const next = await getSettings();
-    setSettings(next);
-    setMode(next.themeMode);
   }
 
   if (loading || !settings) {
@@ -79,244 +61,281 @@ export default function SettingsPage() {
     );
   }
 
-  const update = <K extends keyof UserSettings>(
+  const updateDraft = <K extends keyof UserSettings>(
     key: K,
     value: UserSettings[K],
   ) => {
     setSettings((prev) => {
       if (!prev) return prev;
+      if (prev[key] === value) return prev;
       return { ...prev, [key]: value };
     });
   };
 
-  const sectionSx = {
-    p: 3,
-    border: `1px solid ${theme.appColors.border}`,
-    borderRadius: 2.4,
-    backgroundColor: theme.appColors.panelAlt,
-    boxShadow: `0 14px 28px ${theme.appColors.overlay}`,
+  const commitSetting = <K extends keyof UserSettings>(
+    key: K,
+    value: UserSettings[K],
+  ) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      if (prev[key] === value) return prev;
+      const next = { ...prev, [key]: value };
+      void persistSettings(next);
+      return next;
+    });
   };
 
   return (
-    <Box sx={{ p: 3.4, overflowY: "auto", height: "100%" }}>
-      <Stack spacing={2.6} sx={{ maxWidth: 1120, mx: "auto" }}>
-        <Box>
-          <Typography variant="h3" sx={{ fontSize: 74 / 2.3, fontWeight: 700 }}>
-            设置
-          </Typography>
-          <Typography
-            sx={{ mt: 0.8, color: theme.appColors.textMuted, fontSize: 14 }}
-          >
-            深浅主题、模型连接和系统偏好都会保存在本地，下次启动会继续沿用。
-          </Typography>
-        </Box>
-
-        <Paper elevation={0} sx={sectionSx}>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          px: 3,
+          py: 3,
+        }}
+      >
+        <Stack spacing={2.4}>
           <Stack
             direction="row"
-            spacing={1.2}
+            justifyContent="space-between"
             alignItems="center"
-            sx={{ mb: 1.8 }}
           >
-            <KeyRoundedIcon color="primary" />
-            <Typography
-              variant="h5"
-              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
-            >
+            <Stack direction="row" spacing={1.2} alignItems="center">
+              <Typography sx={{ fontSize: 28, fontWeight: 700 }}>设置</Typography>
+            </Stack>
+          </Stack>
+          <Divider />
+        </Stack>
+      </Box>
+
+      <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 3 }}>
+        <Stack spacing={3.6} sx={{ width: 800, maxWidth: "100%", mx: "auto" }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontSize: 18, fontWeight: 700 }}>
               模型配置
             </Typography>
-          </Stack>
+            <Stack spacing={2.4} sx={{ mt: 2.2 }}>
+              <TextField
+                label="模型名称"
+                value={settings.modelName}
+                onChange={(event) => updateDraft("modelName", event.target.value)}
+                onBlur={(event) =>
+                  commitSetting("modelName", event.target.value)
+                }
+                helperText="例如：gpt-4o-mini / gpt-4.1-mini"
+                fullWidth
+                size="small"
+                sx={{ width: 500, maxWidth: "100%" }}
+              />
 
-          <Stack spacing={1.9}>
-            <TextField
-              label="模型名称"
-              value={settings.modelName}
-              onChange={(event) => update("modelName", event.target.value)}
-              helperText="例如：gpt-4o-mini / gpt-4.1-mini"
-              fullWidth
-            />
+              <TextField
+                label="网关地址"
+                value={settings.baseUrl}
+                onChange={(event) => updateDraft("baseUrl", event.target.value)}
+                onBlur={(event) => commitSetting("baseUrl", event.target.value)}
+                placeholder="https://api.openai.com/v1"
+                helperText="可选，兼容 OpenAI API 的网关地址。留空使用默认地址。"
+                fullWidth
+                size="small"
+                sx={{ width: 500, maxWidth: "100%" }}
+              />
 
-            <TextField
-              label="网关地址"
-              value={settings.baseUrl}
-              onChange={(event) => update("baseUrl", event.target.value)}
-              placeholder="https://api.openai.com/v1"
-              helperText="可选，兼容 OpenAI API 的网关地址。留空使用默认地址。"
-              fullWidth
-            />
+              <TextField
+                label="API Key"
+                type="password"
+                value={settings.apiKey}
+                onChange={(event) => updateDraft("apiKey", event.target.value)}
+                onBlur={(event) => commitSetting("apiKey", event.target.value)}
+                helperText="你的apiKey"
+                fullWidth
+                size="small"
+                sx={{ width: 500, maxWidth: "100%" }}
+              />
+            </Stack>
+          </Box>
 
-            <TextField
-              label="API Key"
-              type="password"
-              value={settings.apiKey}
-              onChange={(event) => update("apiKey", event.target.value)}
-              helperText="你的apiKey"
-              fullWidth
-            />
-          </Stack>
-        </Paper>
+          <Divider />
 
-        <Paper elevation={0} sx={sectionSx}>
-          <Stack
-            direction="row"
-            spacing={1.2}
-            alignItems="center"
-            sx={{ mb: 1.8 }}
-          >
-            <TrackChangesOutlinedIcon color="primary" />
-            <Typography
-              variant="h5"
-              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
-            >
+          <Box>
+            <Typography variant="h5" sx={{ fontSize: 18, fontWeight: 700 }}>
               LangSmith 监控
             </Typography>
-          </Stack>
+            <Stack spacing={2.4} sx={{ mt: 2.2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={settings.langsmithEnabled}
+                    onChange={(_event, checked) =>
+                      commitSetting("langsmithEnabled", checked)
+                    }
+                  />
+                }
+                label="启用 LangSmith 追踪（上报对话内容 + 工具输入输出）"
+              />
+              <TextField
+                label="LangSmith API Key"
+                type="password"
+                value={settings.langsmithApiKey}
+                onChange={(event) =>
+                  updateDraft("langsmithApiKey", event.target.value)
+                }
+                onBlur={(event) =>
+                  commitSetting("langsmithApiKey", event.target.value)
+                }
+                helperText="启用后用于追踪上报"
+                fullWidth
+                size="small"
+                sx={{ width: 500, maxWidth: "100%" }}
+                disabled={!settings.langsmithEnabled}
+              />
+              <TextField
+                label="LangSmith Project"
+                value={settings.langsmithProject}
+                onChange={(event) =>
+                  updateDraft("langsmithProject", event.target.value)
+                }
+                onBlur={(event) =>
+                  commitSetting("langsmithProject", event.target.value)
+                }
+                helperText="可选，用于区分环境或实验"
+                fullWidth
+                size="small"
+                sx={{ width: 500, maxWidth: "100%" }}
+                disabled={!settings.langsmithEnabled}
+              />
+              <TextField
+                label="LangSmith Endpoint"
+                value={settings.langsmithEndpoint}
+                onChange={(event) =>
+                  updateDraft("langsmithEndpoint", event.target.value)
+                }
+                onBlur={(event) =>
+                  commitSetting("langsmithEndpoint", event.target.value)
+                }
+                helperText="可选，自托管或地区专用地址"
+                fullWidth
+                size="small"
+                sx={{ width: 500, maxWidth: "100%" }}
+                disabled={!settings.langsmithEnabled}
+              />
+            </Stack>
+          </Box>
 
-          <Stack spacing={1.9}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.langsmithEnabled}
-                  onChange={(_event, checked) =>
-                    update("langsmithEnabled", checked)
-                  }
-                />
-              }
-              label="启用 LangSmith 追踪（上报对话内容 + 工具输入输出）"
-            />
-            <TextField
-              label="LangSmith API Key"
-              type="password"
-              value={settings.langsmithApiKey}
-              onChange={(event) => update("langsmithApiKey", event.target.value)}
-              helperText="启用后用于追踪上报"
-              fullWidth
-              disabled={!settings.langsmithEnabled}
-            />
-            <TextField
-              label="LangSmith Project"
-              value={settings.langsmithProject}
-              onChange={(event) => update("langsmithProject", event.target.value)}
-              helperText="可选，用于区分环境或实验"
-              fullWidth
-              disabled={!settings.langsmithEnabled}
-            />
-            <TextField
-              label="LangSmith Endpoint"
-              value={settings.langsmithEndpoint}
-              onChange={(event) => update("langsmithEndpoint", event.target.value)}
-              helperText="可选，自托管或地区专用地址"
-              fullWidth
-              disabled={!settings.langsmithEnabled}
-            />
-          </Stack>
-        </Paper>
+          <Divider />
 
-        <Paper elevation={0} sx={sectionSx}>
-          <Stack
-            direction="row"
-            spacing={1.2}
-            alignItems="center"
-            sx={{ mb: 1.8 }}
-          >
-            <ShieldOutlinedIcon color="primary" />
-            <Typography
-              variant="h5"
-              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
-            >
+          <Box>
+            <Typography variant="h5" sx={{ fontSize: 18, fontWeight: 700 }}>
               系统偏好设置
             </Typography>
-          </Stack>
-
-          <Stack spacing={0.2}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.themeMode === "dark"}
-                  onChange={(_event, checked) => {
-                    const nextMode = checked ? "dark" : "light";
-                    update("themeMode", nextMode);
-                  }}
-                />
-              }
-              label={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  {settings.themeMode === "dark" ? (
-                    <DarkModeRoundedIcon fontSize="small" color="primary" />
-                  ) : (
-                    <LightModeRoundedIcon fontSize="small" color="primary" />
-                  )}
-                  <Typography>
-                    {settings.themeMode === "dark" ? "深色模式" : "浅色模式"}
-                  </Typography>
+            <Stack spacing={2.4} sx={{ mt: 2.2 }}>
+              <Box>
+                <Typography sx={{ fontSize: 14, mb: 1, color: theme.appColors.textMuted }}>
+                  颜色模式
+                </Typography>
+                <Stack direction="row" spacing={1.2}>
+                  {[
+                    {
+                      value: "light" as const,
+                      label: "浅色模式",
+                      previewBg: "linear-gradient(135deg, #ffffff 0%, #e8edf6 100%)",
+                      previewBorder: "1px solid #d7dfea",
+                    },
+                    {
+                      value: "dark" as const,
+                      label: "深色模式",
+                      previewBg: "linear-gradient(135deg, #1f2530 0%, #0f1218 100%)",
+                      previewBorder: "1px solid #2c3340",
+                    },
+                  ].map((mode) => {
+                    const selected = settings.themeMode === mode.value;
+                    return (
+                      <Box
+                        key={mode.value}
+                        role="button"
+                        onClick={() => commitSetting("themeMode", mode.value)}
+                        sx={{
+                          width: 120,
+                          borderRadius: 1.6,
+                          border: `1px solid ${
+                            selected ? theme.palette.primary.main : theme.appColors.border
+                          }`,
+                          p: 1.2,
+                          cursor: "pointer",
+                          backgroundColor: selected
+                            ? theme.palette.action.hover
+                            : "transparent",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            height: 54,
+                            borderRadius: 1.1,
+                            background: mode.previewBg,
+                            border: mode.previewBorder,
+                            boxShadow: selected
+                              ? `0 0 0 1px ${theme.palette.primary.main}`
+                              : "none",
+                          }}
+                        />
+                        <Typography
+                          sx={{
+                            mt: 1,
+                            fontSize: 13,
+                            fontWeight: selected ? 700 : 500,
+                          }}
+                        >
+                          {mode.label}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
                 </Stack>
-              }
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.desktopNotifications}
-                  onChange={(_event, checked) =>
-                    update("desktopNotifications", checked)
-                  }
-                />
-              }
-              label="允许桌面通知"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.developerLogging}
-                  onChange={(_event, checked) =>
-                    update("developerLogging", checked)
-                  }
-                />
-              }
-              label="开发者日志模式"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.dataTelemetry}
-                  onChange={(_event, checked) =>
-                    update("dataTelemetry", checked)
-                  }
-                />
-              }
-              label="数据遥测 (帮助提高模型准确性)"
-            />
-          </Stack>
-        </Paper>
+              </Box>
 
-        <Stack direction="row" justifyContent="center" spacing={1.6}>
-          <Button
-            variant="outlined"
-            onClick={() => void restoreSettings()}
-            sx={{
-              textTransform: "none",
-              px: 3.4,
-              py: 1.3,
-              borderRadius: 1.5,
-              fontWeight: 700,
-            }}
-          >
-            还原
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => void persistSettings()}
-            sx={{
-              textTransform: "none",
-              px: 3.4,
-              py: 1.3,
-              borderRadius: 1.5,
-              fontWeight: 700,
-            }}
-          >
-            保存
-          </Button>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={settings.desktopNotifications}
+                    onChange={(_event, checked) =>
+                      commitSetting("desktopNotifications", checked)
+                    }
+                  />
+                }
+                label="允许桌面通知"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={settings.developerLogging}
+                    onChange={(_event, checked) =>
+                      commitSetting("developerLogging", checked)
+                    }
+                  />
+                }
+                label="开发者日志模式"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={settings.dataTelemetry}
+                    onChange={(_event, checked) =>
+                      commitSetting("dataTelemetry", checked)
+                    }
+                  />
+                }
+                label="数据遥测 (帮助提高模型准确性)"
+              />
+            </Stack>
+          </Box>
         </Stack>
-      </Stack>
+      </Box>
     </Box>
   );
 }
