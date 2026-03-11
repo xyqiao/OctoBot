@@ -121,6 +121,10 @@ interface DesktopUserSettings {
   modelName: string;
   baseUrl: string;
   apiKey: string;
+  langsmithEnabled: boolean;
+  langsmithApiKey: string;
+  langsmithProject: string;
+  langsmithEndpoint: string;
   themeMode: "light" | "dark";
   desktopNotifications: boolean;
   developerLogging: boolean;
@@ -159,6 +163,10 @@ interface AgentRuntimePayload {
   apiKey?: string;
   modelName?: string;
   baseUrl?: string;
+  langsmithEnabled?: boolean;
+  langsmithApiKey?: string;
+  langsmithProject?: string;
+  langsmithEndpoint?: string;
 }
 
 interface AgentRuntimeResult {

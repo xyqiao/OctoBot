@@ -3,6 +3,7 @@ import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
 import {
   Box,
   Button,
@@ -151,6 +152,62 @@ export default function SettingsPage() {
               onChange={(event) => update("apiKey", event.target.value)}
               helperText="你的apiKey"
               fullWidth
+            />
+          </Stack>
+        </Paper>
+
+        <Paper elevation={0} sx={sectionSx}>
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+            sx={{ mb: 1.8 }}
+          >
+            <TrackChangesOutlinedIcon color="primary" />
+            <Typography
+              variant="h5"
+              sx={{ fontSize: 42 / 2.4, fontWeight: 700 }}
+            >
+              LangSmith 监控
+            </Typography>
+          </Stack>
+
+          <Stack spacing={1.9}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={settings.langsmithEnabled}
+                  onChange={(_event, checked) =>
+                    update("langsmithEnabled", checked)
+                  }
+                />
+              }
+              label="启用 LangSmith 追踪（上报对话内容 + 工具输入输出）"
+            />
+            <TextField
+              label="LangSmith API Key"
+              type="password"
+              value={settings.langsmithApiKey}
+              onChange={(event) => update("langsmithApiKey", event.target.value)}
+              helperText="启用后用于追踪上报"
+              fullWidth
+              disabled={!settings.langsmithEnabled}
+            />
+            <TextField
+              label="LangSmith Project"
+              value={settings.langsmithProject}
+              onChange={(event) => update("langsmithProject", event.target.value)}
+              helperText="可选，用于区分环境或实验"
+              fullWidth
+              disabled={!settings.langsmithEnabled}
+            />
+            <TextField
+              label="LangSmith Endpoint"
+              value={settings.langsmithEndpoint}
+              onChange={(event) => update("langsmithEndpoint", event.target.value)}
+              helperText="可选，自托管或地区专用地址"
+              fullWidth
+              disabled={!settings.langsmithEnabled}
             />
           </Stack>
         </Paper>

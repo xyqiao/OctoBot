@@ -99,6 +99,13 @@ function normalizeAgentPayload(payload = {}) {
     latestUserMessage:
       typeof source.latestUserMessage === "string" ? source.latestUserMessage : "",
     apiKey: typeof source.apiKey === "string" ? source.apiKey : "",
+    langsmithEnabled: Boolean(source.langsmithEnabled),
+    langsmithApiKey:
+      typeof source.langsmithApiKey === "string" ? source.langsmithApiKey : "",
+    langsmithProject:
+      typeof source.langsmithProject === "string" ? source.langsmithProject : "",
+    langsmithEndpoint:
+      typeof source.langsmithEndpoint === "string" ? source.langsmithEndpoint : "",
     modelName:
       typeof source.modelName === "string" && source.modelName.trim()
         ? source.modelName.trim()
@@ -109,7 +116,11 @@ function normalizeAgentPayload(payload = {}) {
 
 async function prepareChatRuntimePayload(payload = {}) {
   const normalizedPayload = normalizeAgentPayload(payload);
-  if (!storage || !normalizedPayload.chatId) {
+  if (!storage) {
+    return normalizedPayload;
+  }
+
+  if (!normalizedPayload.chatId) {
     return normalizedPayload;
   }
 

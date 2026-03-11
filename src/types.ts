@@ -45,6 +45,10 @@ export interface UserSettings {
   modelName: string;
   baseUrl: string;
   apiKey: string;
+  langsmithEnabled: boolean;
+  langsmithApiKey: string;
+  langsmithProject: string;
+  langsmithEndpoint: string;
   themeMode: ThemeMode;
   desktopNotifications: boolean;
   developerLogging: boolean;

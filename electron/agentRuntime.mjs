@@ -1,4 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { Client as LangSmithClient } from "langsmith";
+import { LangChainTracer } from "@langchain/core/tracers/tracer_langchain";
 import {
   HumanMessage,
   SystemMessage,
@@ -454,6 +456,19 @@ function extractAssistantAnswer(messages) {
   return toText(lastMessage?.content);
 }
 
+function buildLangSmithTracer({ enabled, apiKey, projectName, endpoint }) {
+  if (!enabled || !apiKey || !apiKey.trim()) {
+    return null;
+  }
+
+  const client = new LangSmithClient({
+    apiKey: apiKey.trim(),
+    apiUrl: endpoint && endpoint.trim() ? endpoint.trim() : undefined,
+  });
+  const tracer = new LangChainTracer({ projectName, client });
+  return tracer;
+}
+
 function extractEventTextChunk(event) {
   const chunk = event?.data?.chunk;
   if (!chunk) {
@@ -669,6 +684,10 @@ async function runLangGraphAgent({
   onChunk,
   onLog,
   enabledSkillSpecs = [],
+  langsmithEnabled,
+  langsmithApiKey,
+  langsmithProject,
+  langsmithEndpoint,
 }) {
   const logs = [];
   const { selectedSkills, matchReason } = selectSkillsForPrompt(
@@ -736,6 +755,17 @@ async function runLangGraphAgent({
     },
   });
 
+  const langsmithTracer = buildLangSmithTracer({
+    enabled: langsmithEnabled,
+    apiKey: langsmithApiKey,
+    projectName: langsmithProject,
+    endpoint: langsmithEndpoint,
+  });
+
+  if (langsmithTracer) {
+    pushLog(logs, onLog, "[INFO] LangSmith 追踪已启用。");
+  }
+
   const graph = buildMultiAgentGraph({
     model,
     tools,
@@ -777,6 +807,7 @@ async function runLangGraphAgent({
       signal: runSignal,
       version: "v2",
       recursionLimit: AGENT_RECURSION_LIMIT,
+      callbacks: langsmithTracer ? [langsmithTracer] : undefined,
     });
 
     for await (const event of eventStream) {
@@ -962,6 +993,10 @@ export async function runMultiAgentChatStream({
   apiKey,
   modelName,
   baseUrl,
+  langsmithEnabled = false,
+  langsmithApiKey = "",
+  langsmithProject,
+  langsmithEndpoint,
   enabledSkillSpecs = [],
   signal,
   onChunk,
@@ -975,6 +1010,10 @@ export async function runMultiAgentChatStream({
     signal,
     onChunk,
     onLog,
+    langsmithEnabled,
+    langsmithApiKey,
+    langsmithProject,
+    langsmithEndpoint,
   });
 }
 
@@ -983,6 +1022,10 @@ export async function runMultiAgentChat({
   apiKey,
   modelName,
   baseUrl,
+  langsmithEnabled = false,
+  langsmithApiKey = "",
+  langsmithProject,
+  langsmithEndpoint,
   enabledSkillSpecs = [],
 }) {
   return runMultiAgentChatStream({
@@ -990,6 +1033,10 @@ export async function runMultiAgentChat({
     apiKey,
     modelName,
     baseUrl,
+    langsmithEnabled,
+    langsmithApiKey,
+    langsmithProject,
+    langsmithEndpoint,
     enabledSkillSpecs,
   });
 }
@@ -1039,6 +1086,10 @@ export async function runTaskWorkflow({
   apiKey,
   modelName,
   baseUrl,
+  langsmithEnabled = false,
+  langsmithApiKey = "",
+  langsmithProject,
+  langsmithEndpoint,
   enabledSkillSpecs = [],
 }) {
   const result = await runMultiAgentChat({
@@ -1046,6 +1097,10 @@ export async function runTaskWorkflow({
     apiKey,
     modelName,
     baseUrl,
+    langsmithEnabled,
+    langsmithApiKey,
+    langsmithProject,
+    langsmithEndpoint,
     enabledSkillSpecs,
   });
 

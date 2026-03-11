@@ -3,6 +3,10 @@ export type RuntimeOptions = {
   chatId?: string;
   latestUserMessage?: string;
   apiKey?: string;
+  langsmithEnabled?: boolean;
+  langsmithApiKey?: string;
+  langsmithProject?: string;
+  langsmithEndpoint?: string;
   modelName?: string;
   baseUrl?: string;
   abortSignal?: AbortSignal;
@@ -44,7 +48,18 @@ export async function runMultiAgentChat(options: RuntimeOptions): Promise<Runtim
     return fallback(fallbackPrompt);
   }
 
-  return window.desktopApi.runAgentChat(options);
+  return window.desktopApi.runAgentChat({
+    prompt: options.prompt,
+    chatId: options.chatId,
+    latestUserMessage: options.latestUserMessage,
+    apiKey: options.apiKey,
+    langsmithEnabled: options.langsmithEnabled,
+    langsmithApiKey: options.langsmithApiKey,
+    langsmithProject: options.langsmithProject,
+    langsmithEndpoint: options.langsmithEndpoint,
+    modelName: options.modelName,
+    baseUrl: options.baseUrl,
+  });
 }
 
 export async function* runMultiAgentChatStream(options: RuntimeOptions): AsyncGenerator<RuntimeStreamEvent> {
@@ -87,6 +102,10 @@ export async function* runMultiAgentChatStream(options: RuntimeOptions): AsyncGe
         chatId: options.chatId,
         latestUserMessage: options.latestUserMessage,
         apiKey: options.apiKey,
+        langsmithEnabled: options.langsmithEnabled,
+        langsmithApiKey: options.langsmithApiKey,
+        langsmithProject: options.langsmithProject,
+        langsmithEndpoint: options.langsmithEndpoint,
         modelName: options.modelName,
         baseUrl: options.baseUrl,
       },
@@ -124,5 +143,14 @@ export async function runTaskWorkflow(options: RuntimeOptions): Promise<RuntimeR
     return fallback(options.prompt || "");
   }
 
-  return window.desktopApi.runTaskWorkflow(options);
+  return window.desktopApi.runTaskWorkflow({
+    prompt: options.prompt,
+    apiKey: options.apiKey,
+    langsmithEnabled: options.langsmithEnabled,
+    langsmithApiKey: options.langsmithApiKey,
+    langsmithProject: options.langsmithProject,
+    langsmithEndpoint: options.langsmithEndpoint,
+    modelName: options.modelName,
+    baseUrl: options.baseUrl,
+  });
 }

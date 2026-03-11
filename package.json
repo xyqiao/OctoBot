@@ -36,6 +36,7 @@
     "docx": "^9.6.0",
     "js-tiktoken": "^1.0.21",
     "langchain": "^1.2.29",
+    "langsmith": "^0.5.7",
     "mammoth": "^1.11.0",
     "playwright": "^1.58.2",
     "react": "^18.3.1",
