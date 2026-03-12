@@ -31,6 +31,7 @@
     "@mui/icons-material": "^6.4.7",
     "@mui/material": "^6.4.7",
     "@playwright/mcp": "^0.0.68",
+    "@zhafron/mcp-web-search": "^1.2.3",
     "adm-zip": "^0.5.16",
     "better-sqlite3": "^12.6.2",
     "docx": "^9.6.0",

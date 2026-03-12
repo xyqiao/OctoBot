@@ -16,6 +16,11 @@ const {
   getCachedFilesystemMcpTools,
   callFilesystemMcpTool,
 } = require("./filesystemMcpRuntime.cjs");
+const {
+  listWebSearchMcpTools,
+  getCachedWebSearchMcpTools,
+  callWebSearchMcpTool,
+} = require("./webSearchMcpRuntime.cjs");
 
 function toSafeString(value, fallback = "") {
   if (typeof value === "string") {
@@ -36,7 +41,8 @@ function normalizeObject(value) {
 
 function normalizeToolDescription(value, fallbackPrefix, name) {
   return (
-    toSafeString(value, "").trim() || `${fallbackPrefix} tool: ${toSafeString(name, "")}`
+    toSafeString(value, "").trim() ||
+    `${fallbackPrefix} tool: ${toSafeString(name, "")}`
   );
 }
 
@@ -211,15 +217,37 @@ export async function createLangChainTools(options = {}) {
       }`,
     );
   }
+  try {
+    await appendMcpTools(tools, {
+      server: "web_search",
+      label: "Web Search MCP",
+      list: () =>
+        listWebSearchMcpTools({
+          mcpServers: options?.mcpServers,
+          onLog: options?.onLog,
+          timeoutMs: options?.mcpTimeoutMs,
+        }),
+      call: (toolName, input) =>
+        callWebSearchMcpTool(toolName, input, {
+          mcpServers: options?.mcpServers,
+          onLog: options?.onLog,
+          timeoutMs: options?.mcpTimeoutMs,
+        }),
+    });
+  } catch (error) {
+    options?.onLog?.(
+      `[MCP/web-search] 加载工具定义失败: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 
   if (allowed.length === 0) {
     return tools;
   }
 
   const allowedSet = new Set(
-    allowed
-      .map((item) => String(item).trim())
-      .filter(Boolean),
+    allowed.map((item) => String(item).trim()).filter(Boolean),
   );
 
   const filtered = tools.filter((toolItem) => allowedSet.has(toolItem.name));
@@ -254,8 +282,21 @@ export function listCapabilityTools() {
       item.name,
     ),
   }));
+  const webSearchTools = getCachedWebSearchMcpTools().map((item) => ({
+    name: toPrefixedMcpToolName("web_search", item.name),
+    description: normalizeToolDescription(
+      item.description,
+      "Web Search MCP",
+      item.name,
+    ),
+  }));
 
-  const merged = [...baseTools, ...filesystemTools, ...playwrightTools];
+  const merged = [
+    ...baseTools,
+    ...filesystemTools,
+    ...playwrightTools,
+    ...webSearchTools,
+  ];
   const seen = new Set();
   return merged.filter((item) => {
     if (!item?.name || seen.has(item.name)) {

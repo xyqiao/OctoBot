@@ -21,6 +21,7 @@ let taskDispatcher = null;
 let skillManager = null;
 let shutdownPlaywrightMcp = null;
 let shutdownFilesystemMcp = null;
+let shutdownWebSearchMcp = null;
 const activeChatStreams = new Map();
 const activeChatMemoryRefreshes = new Map();
 let shutdownHandled = false;
@@ -283,6 +284,12 @@ function shutdownResources() {
       console.error("[main] 关闭 Filesystem MCP 失败:", error);
     });
   }
+
+  if (typeof shutdownWebSearchMcp === "function") {
+    void shutdownWebSearchMcp().catch((error) => {
+      console.error("[main] 关闭 Web Search MCP 失败:", error);
+    });
+  }
 }
 
 function createWindow() {
@@ -374,6 +381,10 @@ app
         warmupFilesystemMcp,
         shutdownFilesystemMcp: shutdownFilesystemMcpRuntime,
       } = require("./agentTools/filesystemMcpRuntime.cjs");
+      const {
+        warmupWebSearchMcp,
+        shutdownWebSearchMcp: shutdownWebSearchMcpRuntime,
+      } = require("./agentTools/webSearchMcpRuntime.cjs");
       storage = createStorage(app.getPath("userData"));
       setStorage(storage);
       skillManager = new SkillManager({
@@ -401,6 +412,7 @@ app
 
       shutdownPlaywrightMcp = shutdownPlaywrightMcpRuntime;
       shutdownFilesystemMcp = shutdownFilesystemMcpRuntime;
+      shutdownWebSearchMcp = shutdownWebSearchMcpRuntime;
       void warmupPlaywrightMcp({
         onLog: (message) => console.info(message),
       }).catch((error) => {
@@ -416,6 +428,15 @@ app
       }).catch((error) => {
         console.warn(
           `[main] Filesystem MCP 启动失败: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+      void warmupWebSearchMcp({
+        onLog: (message) => console.info(message),
+      }).catch((error) => {
+        console.warn(
+          `[main] Web Search MCP 启动失败: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
