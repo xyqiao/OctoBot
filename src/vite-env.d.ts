@@ -55,7 +55,7 @@ interface DesktopTaskDefinition {
   id: string;
   title: string;
   description: string;
-  taskType: "file_ops" | "office_doc" | "custom";
+  taskType: "agent_task";
   payload: Record<string, unknown>;
   lifecycleStatus: DesktopTaskLifecycleStatus;
   schedule: DesktopTaskSchedule;
@@ -98,20 +98,6 @@ interface DesktopTaskRunCancelResult {
   reason: string;
 }
 
-interface DesktopTaskCreatePayload {
-  id?: string;
-  title: string;
-  description?: string;
-  taskType?: "file_ops" | "office_doc" | "custom";
-  payload?: Record<string, unknown>;
-  lifecycleStatus?: DesktopTaskLifecycleStatus;
-  schedule?: {
-    type?: DesktopTaskScheduleType;
-    runAt?: number;
-    cronExpr?: string;
-    timezone?: string;
-  };
-}
 
 interface DesktopUserSettings {
   id: "user-settings";
@@ -216,9 +202,6 @@ declare global {
       runTaskWorkflow: (
         payload: AgentRuntimePayload,
       ) => Promise<AgentRuntimeResult>;
-      createTaskDefinition: (
-        payload: DesktopTaskCreatePayload,
-      ) => Promise<DesktopTaskDefinition | null>;
       listTaskDefinitions: () => Promise<DesktopTaskDefinition[]>;
       updateTaskStatus: (
         taskId: string,

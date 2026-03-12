@@ -188,7 +188,7 @@ function summarizeChatTitle(content) {
   return `${firstSentence.slice(0, maxLen).trim()}...`;
 }
 
-const taskTypes = new Set(["file_ops", "office_doc", "custom", "agent_task"]);
+const taskTypes = new Set(["agent_task"]);
 const taskLifecycleStatuses = new Set([
   "draft",
   "active",
@@ -207,8 +207,8 @@ const taskRunStatuses = new Set([
 const taskTriggerTypes = new Set(["manual", "schedule", "retry"]);
 
 function normalizeTaskType(value) {
-  const normalized = String(value ?? "custom").trim();
-  return taskTypes.has(normalized) ? normalized : "custom";
+  const normalized = String(value || "agent_task").trim();
+  return taskTypes.has(normalized) ? normalized : "agent_task";
 }
 
 function normalizeLifecycleStatus(value) {
@@ -739,6 +739,7 @@ function createStorage(userDataDir) {
          s.last_run_at
        FROM task_definition d
        LEFT JOIN task_schedule s ON s.task_id = d.id
+       WHERE d.task_type = 'agent_task'
        ORDER BY d.updated_at DESC`,
     ),
     listDueTaskSchedules: db.prepare(
@@ -751,6 +752,7 @@ function createStorage(userDataDir) {
        FROM task_definition d
        INNER JOIN task_schedule s ON s.task_id = d.id
        WHERE d.lifecycle_status = 'active'
+         AND d.task_type = 'agent_task'
          AND s.schedule_type IN ('once', 'cron')
          AND s.next_run_at IS NOT NULL
          AND s.next_run_at <= ?

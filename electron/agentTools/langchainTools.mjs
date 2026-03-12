@@ -148,6 +148,16 @@ export async function createLangChainTools(options = {}) {
     );
   }
 
+  if (!tools.some((item) => item.name === "task_create_definition")) {
+    tools.push(
+      tool(createToolRunner("task_create_definition", options), {
+        name: "task_create_definition",
+        description: "Create an agent_task definition from a prompt.",
+        schema: z.object({}).passthrough(),
+      }),
+    );
+  }
+
   try {
     await appendMcpTools(tools, {
       server: "filesystem",

@@ -34,7 +34,6 @@ contextBridge.exposeInMainWorld("desktopApi", {
   },
   cancelAgentChatStream: (streamId) => ipcRenderer.invoke("agent:chat:stream/cancel", streamId),
   runTaskWorkflow: (payload) => ipcRenderer.invoke("agent:task", payload),
-  createTaskDefinition: (payload) => ipcRenderer.invoke("task:create", payload),
   listTaskDefinitions: () => ipcRenderer.invoke("task:list"),
   updateTaskStatus: (taskId, lifecycleStatus, options) =>
     ipcRenderer.invoke("task:updateStatus", taskId, lifecycleStatus, options),

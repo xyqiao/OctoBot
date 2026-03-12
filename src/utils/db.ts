@@ -5,7 +5,6 @@ import type {
   ChatSession,
   SkillDescriptor,
   SkillInstallPayload,
-  TaskCreatePayload,
   TaskDefinition,
   TaskRun,
   TaskRunCancelResult,
@@ -73,10 +72,6 @@ export async function listTasks() {
 
 export async function upsertTask(task: AgentTask) {
   return ensureDesktopApi().upsertTask(task);
-}
-
-export async function createTaskDefinition(payload: TaskCreatePayload) {
-  return ensureDesktopApi().createTaskDefinition(payload) as Promise<TaskDefinition | null>;
 }
 
 export async function listTaskDefinitions() {

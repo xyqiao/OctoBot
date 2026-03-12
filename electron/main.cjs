@@ -361,6 +361,7 @@ app
   .then(() => {
     try {
       const { createStorage } = require("./sqliteStorage.cjs");
+      const { setStorage } = require("./storageContext.cjs");
       const { TaskScheduler } = require("./taskEngine/TaskScheduler.cjs");
       const { TaskDispatcher } = require("./taskEngine/TaskDispatcher.cjs");
       const { WorkerManager } = require("./taskEngine/WorkerManager.cjs");
@@ -374,6 +375,7 @@ app
         shutdownFilesystemMcp: shutdownFilesystemMcpRuntime,
       } = require("./agentTools/filesystemMcpRuntime.cjs");
       storage = createStorage(app.getPath("userData"));
+      setStorage(storage);
       skillManager = new SkillManager({
         userDataDir: app.getPath("userData"),
         builtinSkillsDir: path.join(__dirname, "skills_builtin"),
@@ -501,10 +503,6 @@ app
       const runtime = await getRuntime();
       return runtime.runTaskWorkflow(await withEnabledSkills(payload));
     });
-
-    ipcMain.handle("task:create", (_event, payload) =>
-      storage.createTaskDefinition(payload),
-    );
     ipcMain.handle("task:list", () => storage.listTaskDefinitions());
     ipcMain.handle("task:updateStatus", (_event, taskId, lifecycleStatus, options) => {
       const result = storage.updateTaskLifecycleStatus(

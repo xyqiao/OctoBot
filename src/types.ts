@@ -110,7 +110,7 @@ export interface TaskDefinition {
   id: string;
   title: string;
   description: string;
-  taskType: "file_ops" | "office_doc" | "custom";
+  taskType: "agent_task";
   payload: Record<string, unknown>;
   lifecycleStatus: TaskLifecycleStatus;
   schedule: TaskSchedule;
@@ -153,17 +153,3 @@ export interface TaskRunCancelResult {
   reason: string;
 }
 
-export interface TaskCreatePayload {
-  id?: string;
-  title: string;
-  description?: string;
-  taskType?: "file_ops" | "office_doc" | "custom";
-  payload?: Record<string, unknown>;
-  lifecycleStatus?: TaskLifecycleStatus;
-  schedule?: {
-    type?: TaskScheduleType;
-    runAt?: number;
-    cronExpr?: string;
-    timezone?: string;
-  };
-}

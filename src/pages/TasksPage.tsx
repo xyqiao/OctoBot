@@ -6,21 +6,14 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
   LinearProgress,
-  MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import PauseCircleOutlineRoundedIcon from "@mui/icons-material/PauseCircleOutlineRounded";
@@ -30,7 +23,6 @@ import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
 import {
   cancelTaskRun,
-  createTaskDefinition,
   listTaskDefinitions,
   listTaskRunLogs,
   listTaskRuns,
@@ -41,7 +33,6 @@ import type {
   TaskDefinition,
   TaskLifecycleStatus,
   TaskRun,
-  TaskScheduleType,
   TaskRunLog,
   TaskRunStatus,
 } from "../types";
@@ -54,18 +45,18 @@ function formatRelative(timestamp: number) {
   const hour = 60 * minute;
   const day = 24 * hour;
 
-  if (diff < minute) return "just now";
-  if (diff < hour) return `${Math.floor(diff / minute)} mins ago`;
-  if (diff < day) return `${Math.floor(diff / hour)} hrs ago`;
-  if (diff < day * 2) return "Yesterday";
-  return new Date(timestamp).toLocaleDateString();
+  if (diff < minute) return "刚刚";
+  if (diff < hour) return `${Math.floor(diff / minute)} 分钟前`;
+  if (diff < day) return `${Math.floor(diff / hour)} 小时前`;
+  if (diff < day * 2) return "昨天";
+  return new Date(timestamp).toLocaleDateString("zh-CN");
 }
 
 function formatTimestamp(timestamp?: number) {
   if (!timestamp) {
     return "--";
   }
-  return new Date(timestamp).toLocaleString();
+  return new Date(timestamp).toLocaleString("zh-CN");
 }
 
 function lifecycleChipColor(status: TaskLifecycleStatus): ChipColor {
@@ -73,6 +64,14 @@ function lifecycleChipColor(status: TaskLifecycleStatus): ChipColor {
   if (status === "paused") return "warning";
   if (status === "terminated") return "default";
   return "default";
+}
+
+function describeLifecycleStatus(status: TaskLifecycleStatus) {
+  if (status === "draft") return "草稿";
+  if (status === "active") return "已启用";
+  if (status === "paused") return "已暂停";
+  if (status === "terminated") return "已终止";
+  return "未知";
 }
 
 function runChipColor(status: TaskRunStatus): ChipColor {
@@ -84,33 +83,42 @@ function runChipColor(status: TaskRunStatus): ChipColor {
   return "error";
 }
 
+function describeRunStatus(status: TaskRunStatus) {
+  if (status === "queued") return "排队中";
+  if (status === "running") return "运行中";
+  if (status === "succeeded") return "成功";
+  if (status === "failed") return "失败";
+  if (status === "canceled") return "已取消";
+  if (status === "timeout") return "超时";
+  return "未知";
+}
+
+function describeTriggerType(triggerType: TaskRun["triggerType"]) {
+  if (triggerType === "manual") return "手动";
+  if (triggerType === "schedule") return "定时";
+  if (triggerType === "retry") return "重试";
+  return "未知";
+}
+
 function describeSchedule(task: TaskDefinition) {
   const schedule = task.schedule;
   if (schedule.type === "manual") {
-    return "Manual task";
+    return "手动任务";
   }
   if (schedule.type === "once") {
-    return `Run once at ${formatTimestamp(schedule.runAt)}`;
+    return `单次执行于 ${formatTimestamp(schedule.runAt)}`;
   }
-  return `Cron ${schedule.cronExpr ?? "--"} (${schedule.timezone})`;
+  return `定时 ${schedule.cronExpr ?? "--"}（${schedule.timezone}）`;
 }
 
 function renderLogLine(log: TaskRunLog) {
-  const time = new Date(log.ts).toLocaleTimeString("en-US", {
+  const time = new Date(log.ts).toLocaleTimeString("zh-CN", {
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   });
   return `[${time}] [${log.level.toUpperCase()}] [${log.phase}] ${log.message}`;
-}
-
-function toDatetimeLocalValue(timestamp: number) {
-  const date = new Date(timestamp);
-  const localDate = new Date(
-    date.getTime() - date.getTimezoneOffset() * 60_000,
-  );
-  return localDate.toISOString().slice(0, 16);
 }
 
 export default function TasksPage() {
@@ -123,30 +131,6 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createTitle, setCreateTitle] = useState("");
-  const [createDescription, setCreateDescription] = useState("");
-  const [createTaskType, setCreateTaskType] =
-    useState<TaskDefinition["taskType"]>("custom");
-  const [createScheduleType, setCreateScheduleType] =
-    useState<TaskScheduleType>("manual");
-  const [createRunAt, setCreateRunAt] = useState(() =>
-    toDatetimeLocalValue(Date.now() + 10 * 60_000),
-  );
-  const [createCronExpr, setCreateCronExpr] = useState("*/15 * * * *");
-  const [createTimezone, setCreateTimezone] = useState("Asia/Shanghai");
-  const [createPayloadText, setCreatePayloadText] = useState("{}");
-  const [createFormError, setCreateFormError] = useState("");
-
-  const payloadPlaceholder = useMemo(() => {
-    if (createTaskType === "file_ops") {
-      return '{"toolCalls":[{"name":"filesystem_mcp_read_file","args":{"path":"./README.md"}}]}';
-    }
-    if (createTaskType === "office_doc") {
-      return '{"toolCalls":[{"name":"office_read_document","args":{"path":"./report.xlsx","sheetName":"Sheet1"}}]}';
-    }
-    return '{"toolCalls":[{"name":"filesystem_mcp_list_directory","args":{"path":"./"}}]}';
-  }, [createTaskType]);
 
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === selectedTaskId) ?? null,
@@ -297,97 +281,6 @@ export default function TasksPage() {
     };
   }, [actionPending, refreshTaskPanel, selectedRunId, selectedTaskId]);
 
-  function openCreateDialog() {
-    setCreateDialogOpen(true);
-    setCreateFormError("");
-    setCreateTitle("");
-    setCreateDescription("");
-    setCreateTaskType("custom");
-    setCreateScheduleType("manual");
-    setCreateRunAt(toDatetimeLocalValue(Date.now() + 10 * 60_000));
-    setCreateCronExpr("*/15 * * * *");
-    setCreateTimezone("Asia/Shanghai");
-    setCreatePayloadText("{}");
-  }
-
-  function closeCreateDialog() {
-    if (actionPending) {
-      return;
-    }
-    setCreateDialogOpen(false);
-    setCreateFormError("");
-  }
-
-  async function handleCreateTaskSubmit() {
-    const title = createTitle.trim();
-    if (!title) {
-      setCreateFormError("任务标题不能为空。");
-      return;
-    }
-
-    let payload: Record<string, unknown>;
-    try {
-      const parsed = JSON.parse(createPayloadText || "{}");
-      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-        setCreateFormError("Payload 必须是 JSON 对象。");
-        return;
-      }
-      payload = parsed;
-    } catch {
-      setCreateFormError("Payload 不是合法的 JSON。");
-      return;
-    }
-
-    let runAt: number | undefined;
-    if (createScheduleType === "once") {
-      const parsedRunAt = Date.parse(createRunAt);
-      if (!Number.isFinite(parsedRunAt)) {
-        setCreateFormError("单次任务的执行时间无效。");
-        return;
-      }
-      runAt = parsedRunAt;
-    }
-
-    if (createScheduleType === "cron" && !createCronExpr.trim()) {
-      setCreateFormError("Cron 表达式不能为空。");
-      return;
-    }
-
-    setCreateFormError("");
-    setActionPending(true);
-    try {
-      const created = await createTaskDefinition({
-        title,
-        description: createDescription.trim(),
-        taskType: createTaskType,
-        payload,
-        lifecycleStatus: "active",
-        schedule: {
-          type: createScheduleType,
-          runAt,
-          cronExpr:
-            createScheduleType === "cron" ? createCronExpr.trim() : undefined,
-          timezone: createTimezone.trim() || "Asia/Shanghai",
-        },
-      });
-
-      if (created?.id) {
-        await loadTasks(created.id);
-        await loadRuns(created.id);
-      } else {
-        await loadTasks();
-      }
-
-      setCreateDialogOpen(false);
-    } catch (error) {
-      setCreateFormError(
-        error instanceof Error ? error.message : String(error),
-      );
-    } finally {
-      setActionPending(false);
-    }
-  }
-
   async function handleRunNow() {
     if (!activeTask) {
       return;
@@ -431,7 +324,7 @@ export default function TasksPage() {
     try {
       const result = await cancelTaskRun(
         runningRun.id,
-        "Canceled by operator from task panel.",
+        "由任务面板取消。",
       );
       await refreshTaskPanel(selectedTaskId, result.run?.id ?? runningRun.id);
     } finally {
@@ -470,17 +363,7 @@ export default function TasksPage() {
             <Typography variant="h5" sx={{ fontSize: 36, fontWeight: 700 }}>
               任务
             </Typography>
-            <IconButton
-              color="primary"
-              sx={{
-                border: `1px solid ${theme.appColors.borderStrong}`,
-                borderRadius: 1.6,
-              }}
-              onClick={openCreateDialog}
-              disabled={actionPending}
-            >
-              <AddRoundedIcon />
-            </IconButton>
+            <Box />
           </Stack>
 
           <Box sx={{ p: 2.2, overflowY: "auto" }}>
@@ -549,7 +432,7 @@ export default function TasksPage() {
                       sx={{ mt: 1.2 }}
                     >
                       <Chip
-                        label={task.lifecycleStatus.toUpperCase()}
+                        label={describeLifecycleStatus(task.lifecycleStatus)}
                         color={lifecycleChipColor(task.lifecycleStatus)}
                         size="small"
                         variant={
@@ -595,7 +478,7 @@ export default function TasksPage() {
                     {activeTask.title}
                   </Typography>
                   <Chip
-                    label={activeTask.lifecycleStatus.toUpperCase()}
+                    label={describeLifecycleStatus(activeTask.lifecycleStatus)}
                     color={lifecycleChipColor(activeTask.lifecycleStatus)}
                   />
                   {refreshing && <CircularProgress size={16} />}
@@ -629,7 +512,7 @@ export default function TasksPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Run Now
+                  立即执行
                 </Button>
                 {activeTask.lifecycleStatus === "paused" ? (
                   <Button
@@ -646,7 +529,7 @@ export default function TasksPage() {
                       fontWeight: 700,
                     }}
                   >
-                    Start
+                    启用
                   </Button>
                 ) : (
                   <Button
@@ -666,7 +549,7 @@ export default function TasksPage() {
                       fontWeight: 700,
                     }}
                   >
-                    Pause
+                    暂停
                   </Button>
                 )}
                 <Button
@@ -686,7 +569,7 @@ export default function TasksPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Terminate
+                  终止
                 </Button>
                 <Button
                   variant="text"
@@ -701,7 +584,7 @@ export default function TasksPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Refresh
+                  刷新
                 </Button>
                 {runningRun && (
                   <Button
@@ -719,7 +602,7 @@ export default function TasksPage() {
                       fontWeight: 700,
                     }}
                   >
-                    Cancel Running
+                    取消运行
                   </Button>
                 )}
               </Stack>
@@ -732,7 +615,7 @@ export default function TasksPage() {
                   sx={{ mb: 1.1 }}
                 >
                   <Typography sx={{ fontWeight: 700, fontSize: 36 / 2.4 }}>
-                    Execution Progress
+                    执行进度
                   </Typography>
                   <Typography sx={{ fontWeight: 700, fontSize: 32 / 2.4 }}>
                     {activeRun?.progress ?? 0}%
@@ -746,8 +629,8 @@ export default function TasksPage() {
                   }}
                 >
                   {activeRun
-                    ? `Current run status: ${activeRun.status.toUpperCase()}`
-                    : "No run selected."}
+                    ? `当前运行状态：${describeRunStatus(activeRun.status)}`
+                    : "尚未选择运行记录。"}
                 </Typography>
                 <LinearProgress
                   variant="determinate"
@@ -768,14 +651,14 @@ export default function TasksPage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <TaskAltRoundedIcon />
                 <Typography sx={{ fontWeight: 700, fontSize: 39 / 2.4 }}>
-                  Run History
+                  运行历史
                 </Typography>
               </Stack>
 
               <Stack spacing={1.2}>
                 {runs.length === 0 ? (
                   <Typography color="text.secondary">
-                    No run history yet. Click `Run Now` to queue one.
+                    暂无运行记录，点击 `立即执行` 排队一次。
                   </Typography>
                 ) : (
                   runs.map((run) => (
@@ -820,7 +703,7 @@ export default function TasksPage() {
                         </Typography>
                         <Chip
                           size="small"
-                          label={run.status.toUpperCase()}
+                          label={describeRunStatus(run.status)}
                           color={runChipColor(run.status)}
                         />
                       </Stack>
@@ -831,7 +714,7 @@ export default function TasksPage() {
                           mt: 0.5,
                         }}
                       >
-                        Trigger: {run.triggerType} · Queued:{" "}
+                        触发方式：{describeTriggerType(run.triggerType)} · 排队时间：{" "}
                         {formatTimestamp(run.queuedAt)}
                       </Typography>
                       <Typography
@@ -841,7 +724,7 @@ export default function TasksPage() {
                           mt: 0.2,
                         }}
                       >
-                        Started: {formatTimestamp(run.startedAt)} · Ended:{" "}
+                        开始：{formatTimestamp(run.startedAt)} · 结束：{" "}
                         {formatTimestamp(run.endedAt)}
                       </Typography>
                     </Paper>
@@ -854,7 +737,7 @@ export default function TasksPage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <TaskAltRoundedIcon />
                 <Typography sx={{ fontWeight: 700, fontSize: 39 / 2.4 }}>
-                  Console Logs
+                  控制台日志
                 </Typography>
               </Stack>
 
@@ -880,141 +763,31 @@ export default function TasksPage() {
                 {selectedRunId
                   ? runLogs.length > 0
                     ? runLogs.map((item) => renderLogLine(item)).join("\n")
-                    : "[INFO] Awaiting runtime logs..."
-                  : "[INFO] Select a run to inspect logs."}
+                    : "[INFO] 等待运行日志..."
+                  : "[INFO] 请选择运行记录查看日志。"}
               </Paper>
             </Stack>
           ) : (
-            <Typography>未选择任务。</Typography>
+            <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  border: `1px solid ${theme.appColors.border}`,
+                  backgroundColor: theme.appColors.panelAlt,
+                }}
+              >
+                <Stack spacing={1.2}>
+                  <Typography sx={{ fontWeight: 700 }}>暂无任务</Typography>
+                  <Typography sx={{ color: theme.appColors.textMuted }}>
+                    请在聊天中使用工具 `task_create_definition` 创建任务。
+                  </Typography>
+                </Stack>
+              </Paper>
           )}
         </Box>
       </Stack>
 
-      <Dialog
-        open={createDialogOpen}
-        onClose={closeCreateDialog}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>创建任务</DialogTitle>
-        <DialogContent sx={{ pt: 1.2 }}>
-          <Stack spacing={1.6} sx={{ mt: 0.2 }}>
-            <TextField
-              label="任务标题"
-              value={createTitle}
-              onChange={(event) => setCreateTitle(event.target.value)}
-              placeholder="例如：每周汇总销售数据"
-              fullWidth
-              autoFocus
-            />
-
-            <TextField
-              label="任务描述"
-              value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
-              placeholder="补充执行目标、约束和输出要求"
-              multiline
-              minRows={2}
-              fullWidth
-            />
-
-            <Stack direction="row" spacing={1.2}>
-              <TextField
-                select
-                label="任务类型"
-                value={createTaskType}
-                onChange={(event) =>
-                  setCreateTaskType(
-                    event.target.value as TaskDefinition["taskType"],
-                  )
-                }
-                fullWidth
-              >
-                <MenuItem value="custom">custom（自定义）</MenuItem>
-                <MenuItem value="file_ops">file_ops（文件读写）</MenuItem>
-                <MenuItem value="office_doc">office_doc（办公文档）</MenuItem>
-              </TextField>
-              <TextField
-                select
-                label="调度类型"
-                value={createScheduleType}
-                onChange={(event) =>
-                  setCreateScheduleType(event.target.value as TaskScheduleType)
-                }
-                fullWidth
-              >
-                <MenuItem value="manual">manual（手动触发）</MenuItem>
-                <MenuItem value="once">once（单次定时）</MenuItem>
-                <MenuItem value="cron">cron（周期任务）</MenuItem>
-              </TextField>
-            </Stack>
-
-            {createScheduleType === "once" && (
-              <TextField
-                type="datetime-local"
-                label="执行时间"
-                value={createRunAt}
-                onChange={(event) => setCreateRunAt(event.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-            )}
-
-            {createScheduleType === "cron" && (
-              <TextField
-                label="Cron 表达式"
-                value={createCronExpr}
-                onChange={(event) => setCreateCronExpr(event.target.value)}
-                placeholder="例如 */15 * * * * 或 30 9 * * *"
-                fullWidth
-                helperText="当前本地解析器支持：*/N * * * *、M * * * *、M H * * *。"
-              />
-            )}
-
-            <TextField
-              label="时区"
-              value={createTimezone}
-              onChange={(event) => setCreateTimezone(event.target.value)}
-              placeholder="Asia/Shanghai"
-              fullWidth
-            />
-
-            <TextField
-              label="Payload(JSON)"
-              value={createPayloadText}
-              onChange={(event) => setCreatePayloadText(event.target.value)}
-              multiline
-              minRows={8}
-              fullWidth
-              placeholder={payloadPlaceholder}
-              helperText="支持 payload.toolCalls 或 payload.operations。文件工具建议使用 filesystem_mcp_read_file、filesystem_mcp_write_file、filesystem_mcp_list_directory；办公工具为 office_read_document、office_write_document。可选 payload.allowedRoots 限制目录。"
-              sx={{
-                "& textarea": {
-                  fontFamily: "Consolas, Menlo, monospace",
-                },
-              }}
-            />
-
-            {createFormError && (
-              <Typography sx={{ color: "error.main", fontSize: 13 }}>
-                {createFormError}
-              </Typography>
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={closeCreateDialog} disabled={actionPending}>
-            取消
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => void handleCreateTaskSubmit()}
-            disabled={actionPending}
-          >
-            创建并激活
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }

@@ -22,6 +22,7 @@ const PLANNER_SYSTEM_PROMPT = [
 const EXECUTOR_SYSTEM_PROMPT = [
   "你是任务执行智能体，必须遵循既定计划，优先使用工具完成真实操作。",
   "工具连续失败两次、工具不可用、或明显需要用户介入时，停止重试并说明阻塞原因。",
+  "如需创建任务，使用工具 task_create_definition，并填写 title/prompt/description/schedule。",
   "不要无限循环调用工具；信息足够时直接进入收敛。",
 ].join("\n");
 
@@ -695,6 +696,9 @@ async function runLangGraphAgent({
     enabledSkillSpecs,
   );
   const allowedToolNames = collectAllowedToolsFromSkills(selectedSkills);
+  if (allowedToolNames.length > 0 && !allowedToolNames.includes("task_create_definition")) {
+    allowedToolNames.push("task_create_definition");
+  }
   const requiredSteps = collectRequiredStepsFromSkills(selectedSkills);
   const skillPatch = buildSkillPromptPatch(selectedSkills);
   const finalPrompt = prompt;
