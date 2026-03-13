@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import {
   Box,
   CircularProgress,
@@ -19,6 +20,11 @@ export default function SettingsPage() {
   const { setMode } = useAppThemeMode();
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const enterCommitRef = useRef<{
+    key: keyof UserSettings;
+    value: UserSettings[keyof UserSettings];
+  } | null>(null);
+  const dirtyRef = useRef<Partial<Record<keyof UserSettings, boolean>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +74,7 @@ export default function SettingsPage() {
     setSettings((prev) => {
       if (!prev) return prev;
       if (prev[key] === value) return prev;
+      dirtyRef.current[key] = true;
       return { ...prev, [key]: value };
     });
   };
@@ -78,11 +85,40 @@ export default function SettingsPage() {
   ) => {
     setSettings((prev) => {
       if (!prev) return prev;
-      if (prev[key] === value) return prev;
-      const next = { ...prev, [key]: value };
+      const hasDirty = dirtyRef.current[key] === true;
+      const unchanged = prev[key] === value;
+      if (unchanged && !hasDirty) return prev;
+      const next = unchanged ? prev : { ...prev, [key]: value };
+      dirtyRef.current[key] = false;
       void persistSettings(next);
       return next;
     });
+  };
+
+  const handleBlurCommit = <K extends keyof UserSettings>(
+    key: K,
+    value: UserSettings[K],
+  ) => {
+    const lastCommit = enterCommitRef.current;
+    if (lastCommit && lastCommit.key === key && lastCommit.value === value) {
+      enterCommitRef.current = null;
+      return;
+    }
+    commitSetting(key, value);
+  };
+
+  const handleEnterCommit = <K extends keyof UserSettings>(
+    key: K,
+    event: KeyboardEvent<HTMLElement>,
+  ) => {
+    if (event.key !== "Enter") return;
+    const target = event.target as HTMLInputElement | HTMLTextAreaElement;
+    if (!target || typeof target.value !== "string") return;
+    event.preventDefault();
+    const value = target.value as UserSettings[K];
+    enterCommitRef.current = { key, value };
+    commitSetting(key, value);
+    target.blur();
   };
 
   return (
@@ -122,7 +158,10 @@ export default function SettingsPage() {
                 value={settings.modelName}
                 onChange={(event) => updateDraft("modelName", event.target.value)}
                 onBlur={(event) =>
-                  commitSetting("modelName", event.target.value)
+                  handleBlurCommit("modelName", event.target.value)
+                }
+                onKeyDown={(event) =>
+                  handleEnterCommit("modelName", event)
                 }
                 helperText="例如：gpt-4o-mini / gpt-4.1-mini"
                 fullWidth
@@ -134,7 +173,12 @@ export default function SettingsPage() {
                 label="网关地址"
                 value={settings.baseUrl}
                 onChange={(event) => updateDraft("baseUrl", event.target.value)}
-                onBlur={(event) => commitSetting("baseUrl", event.target.value)}
+                onBlur={(event) =>
+                  handleBlurCommit("baseUrl", event.target.value)
+                }
+                onKeyDown={(event) =>
+                  handleEnterCommit("baseUrl", event)
+                }
                 placeholder="https://api.openai.com/v1"
                 helperText="可选，兼容 OpenAI API 的网关地址。留空使用默认地址。"
                 fullWidth
@@ -147,7 +191,12 @@ export default function SettingsPage() {
                 type="password"
                 value={settings.apiKey}
                 onChange={(event) => updateDraft("apiKey", event.target.value)}
-                onBlur={(event) => commitSetting("apiKey", event.target.value)}
+                onBlur={(event) =>
+                  handleBlurCommit("apiKey", event.target.value)
+                }
+                onKeyDown={(event) =>
+                  handleEnterCommit("apiKey", event)
+                }
                 helperText="你的apiKey"
                 fullWidth
                 size="small"
@@ -183,7 +232,10 @@ export default function SettingsPage() {
                   updateDraft("langsmithApiKey", event.target.value)
                 }
                 onBlur={(event) =>
-                  commitSetting("langsmithApiKey", event.target.value)
+                  handleBlurCommit("langsmithApiKey", event.target.value)
+                }
+                onKeyDown={(event) =>
+                  handleEnterCommit("langsmithApiKey", event)
                 }
                 helperText="启用后用于追踪上报"
                 fullWidth
@@ -198,7 +250,10 @@ export default function SettingsPage() {
                   updateDraft("langsmithProject", event.target.value)
                 }
                 onBlur={(event) =>
-                  commitSetting("langsmithProject", event.target.value)
+                  handleBlurCommit("langsmithProject", event.target.value)
+                }
+                onKeyDown={(event) =>
+                  handleEnterCommit("langsmithProject", event)
                 }
                 helperText="可选，用于区分环境或实验"
                 fullWidth
@@ -213,7 +268,10 @@ export default function SettingsPage() {
                   updateDraft("langsmithEndpoint", event.target.value)
                 }
                 onBlur={(event) =>
-                  commitSetting("langsmithEndpoint", event.target.value)
+                  handleBlurCommit("langsmithEndpoint", event.target.value)
+                }
+                onKeyDown={(event) =>
+                  handleEnterCommit("langsmithEndpoint", event)
                 }
                 helperText="可选，自托管或地区专用地址"
                 fullWidth
