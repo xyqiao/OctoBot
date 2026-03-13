@@ -5,7 +5,7 @@ const mammoth = require("mammoth");
 const xlsx = require("xlsx");
 const { Document, HeadingLevel, Packer, Paragraph } = require("docx");
 const { callFilesystemMcpTool } = require("./filesystemMcpRuntime.cjs");
-const { getStorage } = require("../storageContext.cjs");
+const { getStorage } = require("../storage/context.cjs");
 
 const DEFAULT_TEXT_LIMIT = 120_000;
 const DEFAULT_MAX_LIST_ENTRIES = 200;
