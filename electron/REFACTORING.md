@@ -68,13 +68,23 @@ electron/
 ├── preload.cjs                 # 预加载脚本
 ├── REFACTORING.md              # 重构说明文档
 ├── agentTools/                 # Agent 工具集成
-│   ├── capabilityExecutor.cjs
-│   ├── filesystemMcpRuntime.cjs
-│   ├── langchainTools.mjs
-│   ├── mcpRuntimeFactory.cjs
-│   ├── playwrightMcpRuntime.cjs
 │   ├── toolRegistry.cjs
-│   └── webSearchMcpRuntime.cjs
+│   └── capabilities/
+│       ├── capabilityRunner.cjs
+│       ├── capabilityRegistry.cjs
+│       ├── filesystemCapabilities.cjs
+│       ├── officeCapabilities.cjs
+│       ├── taskCapabilities.cjs
+│       ├── pathPolicy.cjs
+│       ├── auditLogger.cjs
+│       ├── fileUtils.cjs
+│       └── common.cjs
+├── integrations/
+│   └── mcp/
+│       ├── mcpRuntimeFactory.cjs
+│       ├── filesystemMcpRuntime.cjs
+│       ├── playwrightMcpRuntime.cjs
+│       └── webSearchMcpRuntime.cjs
 ├── chat/                       # 聊天管理 (新增/整理)
 │   ├── chatMemoryManager.cjs  # 聊天记忆管理
 │   ├── chatContextManager.cjs # 上下文构建 (迁移)
@@ -91,6 +101,8 @@ electron/
 │   ├── graphBuilder.mjs       # Graph 构建
 │   ├── stallDetector.mjs      # 停滞检测
 │   ├── summaryGenerator.mjs   # 摘要生成
+│   ├── adapters/             # 框架适配
+│   │   └── langchainTools.mjs # LangChain 工具封装
 │   ├── agents/                # 智能体
 │   │   ├── planner.mjs
 │   │   ├── executor.mjs
@@ -169,8 +181,11 @@ electron/
 ### window/ - 窗口管理
 负责 Electron 窗口的创建、配置和生命周期管理。
 
-### agentTools/ - Agent 工具
-负责 Agent 可用的各种工具集成，如文件系统、浏览器自动化等。
+### agentTools/ - Agent 能力与注册
+负责能力实现与注册（文件/Office/任务等）以及工具注册表。
+
+### integrations/mcp/ - MCP 集成
+负责 MCP 客户端运行时与各 Server 的连接配置（filesystem/playwright/web-search）。
 
 ### taskEngine/ - 任务引擎
 负责定时任务的调度、分发和执行。

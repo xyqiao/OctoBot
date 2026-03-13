@@ -3,7 +3,7 @@
  */
 
 import { HumanMessage } from "@langchain/core/messages";
-import { createLangChainTools, listCapabilityTools } from "../agentTools/langchainTools.mjs";
+import { createLangChainTools, listCapabilityTools } from "./adapters/langchainTools.mjs";
 import { createModel, buildLangSmithTracer } from "./modelFactory.mjs";
 import {
   selectSkillsForPrompt,

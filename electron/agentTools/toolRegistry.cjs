@@ -1,4 +1,4 @@
-const { listCapabilityRegistry } = require("./capabilityExecutor.cjs");
+const { listCapabilityRegistry } = require("./capabilities/capabilityRunner.cjs");
 
 const toolRegistry = new Map();
 

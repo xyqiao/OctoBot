@@ -1,4 +1,4 @@
-const { runCapabilityCall } = require("../agentTools/capabilityExecutor.cjs");
+const { runCapabilityCall } = require("../agentTools/capabilities/capabilityRunner.cjs");
 const path = require("path");
 const { pathToFileURL } = require("url");
 

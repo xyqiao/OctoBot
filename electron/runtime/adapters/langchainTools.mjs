@@ -3,24 +3,24 @@ import { z } from "zod";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { listTools, listToolHandlers } = require("./toolRegistry.cjs");
+const { listTools, listToolHandlers } = require("../../agentTools/toolRegistry.cjs");
 
-const { runCapabilityCall } = require("./capabilityExecutor.cjs");
+const { runCapabilityCall } = require("../../agentTools/capabilities/capabilityRunner.cjs");
 const {
   listPlaywrightMcpTools,
   getCachedPlaywrightMcpTools,
   callPlaywrightMcpTool,
-} = require("./playwrightMcpRuntime.cjs");
+} = require("../../integrations/mcp/playwrightMcpRuntime.cjs");
 const {
   listFilesystemMcpTools,
   getCachedFilesystemMcpTools,
   callFilesystemMcpTool,
-} = require("./filesystemMcpRuntime.cjs");
+} = require("../../integrations/mcp/filesystemMcpRuntime.cjs");
 const {
   listWebSearchMcpTools,
   getCachedWebSearchMcpTools,
   callWebSearchMcpTool,
-} = require("./webSearchMcpRuntime.cjs");
+} = require("../../integrations/mcp/webSearchMcpRuntime.cjs");
 
 function toSafeString(value, fallback = "") {
   if (typeof value === "string") {

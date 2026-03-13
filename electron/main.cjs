@@ -115,15 +115,15 @@ app
       const {
         warmupPlaywrightMcp,
         shutdownPlaywrightMcp: shutdownPlaywrightMcpRuntime,
-      } = require("./agentTools/playwrightMcpRuntime.cjs");
+      } = require("./integrations/mcp/playwrightMcpRuntime.cjs");
       const {
         warmupFilesystemMcp,
         shutdownFilesystemMcp: shutdownFilesystemMcpRuntime,
-      } = require("./agentTools/filesystemMcpRuntime.cjs");
+      } = require("./integrations/mcp/filesystemMcpRuntime.cjs");
       const {
         warmupWebSearchMcp,
         shutdownWebSearchMcp: shutdownWebSearchMcpRuntime,
-      } = require("./agentTools/webSearchMcpRuntime.cjs");
+      } = require("./integrations/mcp/webSearchMcpRuntime.cjs");
 
       storage = createStorage(app.getPath("userData"));
       setStorage(storage);
